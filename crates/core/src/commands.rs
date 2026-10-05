@@ -32,6 +32,7 @@ use std::fmt;
 
 use crate::ids::{AssetId, NodeId, PageId};
 use crate::model::NodeKind;
+use crate::props::NodeProps;
 
 /// The stable, machine-readable code for a command failure.
 ///
@@ -60,6 +61,9 @@ pub enum CommandErrorCode {
     IdCollision,
     /// The command is well-formed but not legal in the current state.
     PreconditionFailed,
+    /// The properties break a rule: wrong content for the node's kind, a negative
+    /// length, or an unusable font setting.
+    InvalidProps,
 }
 
 impl CommandErrorCode {
@@ -77,6 +81,7 @@ impl CommandErrorCode {
             Self::NotARoot => "not-a-root",
             Self::IdCollision => "id-collision",
             Self::PreconditionFailed => "precondition-failed",
+            Self::InvalidProps => "invalid-props",
         }
     }
 }
@@ -274,6 +279,15 @@ pub enum Command {
         /// The new name, or `None` to clear it.
         name: Option<String>,
     },
+    /// Replaces all of a node's visual properties.
+    ///
+    /// The whole value is replaced, so the inverse is simply the previous value.
+    SetNodeProps {
+        /// The node to change.
+        id: NodeId,
+        /// The new properties. Their content must match the node's kind.
+        props: Box<NodeProps>,
+    },
     /// Reorders an existing child within its current parent.
     ReorderNode {
         /// The node to move among its siblings.
@@ -318,6 +332,7 @@ impl Command {
             Self::DeleteNode { .. } => "delete-node",
             Self::MoveNode { .. } => "move-node",
             Self::RenameNode { .. } => "rename-node",
+            Self::SetNodeProps { .. } => "set-node-props",
             Self::ReorderNode { .. } => "reorder-node",
             Self::ReorderTo { .. } => "reorder-to",
             Self::RemovePage { .. } => "remove-page",
@@ -337,6 +352,7 @@ impl Command {
             Self::DeleteNode { id }
             | Self::MoveNode { id, .. }
             | Self::RenameNode { id, .. }
+            | Self::SetNodeProps { id, .. }
             | Self::ReorderNode { id, .. } => Some(*id),
             Self::ReorderTo { .. } | Self::RemovePage { .. } => None,
         }

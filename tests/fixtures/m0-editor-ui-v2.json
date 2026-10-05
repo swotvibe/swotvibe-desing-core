@@ -1,0 +1,3356 @@
+{
+  "schema_version": 2,
+  "id": "0cc0138e-c3f4-5a41-ad66-48a7709e98bd",
+  "pages": [
+    {
+      "id": "30b4c4be-f07f-575c-83a8-6a59687751e4",
+      "name": "واجهة المحرر",
+      "roots": [
+        "7bc82a8e-d93d-55e2-9e3b-c55943e1f25a"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "fda57a1c-9159-50c7-9325-af850ef5174c",
+      "name": "select.svg"
+    },
+    {
+      "id": "991dbd5b-02be-5784-9fb3-83d42a920d3a",
+      "name": "frame.svg"
+    },
+    {
+      "id": "9749335e-8a26-5852-b94f-8b36ed9880f4",
+      "name": "rectangle.svg"
+    },
+    {
+      "id": "93e965ba-650c-5475-bbfa-a98b27146721",
+      "name": "text.svg"
+    },
+    {
+      "id": "d619eb34-aa4a-510e-91a3-749eb04f87ae",
+      "name": "pen.svg"
+    },
+    {
+      "id": "eac00579-109d-5298-b61f-179110bb7445",
+      "name": "share.svg"
+    },
+    {
+      "id": "12a3a206-2ea7-508e-80db-330703e4dfb7",
+      "name": "preview.svg"
+    },
+    {
+      "id": "08b3d3db-edcb-5cc4-a698-02b3c4c5bc69",
+      "name": "product.png"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "7bc82a8e-d93d-55e2-9e3b-c55943e1f25a",
+      "kind": "frame",
+      "name": "واجهة المحرر",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1440,
+          900
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "frame": {
+          "layout": "none"
+        }
+      },
+      "children": [
+        "6f883b50-48f6-532e-9b4a-8a42ba3e6947",
+        "77e97a0a-96bb-521e-9fe3-95fed2293af0",
+        "6f15331a-dc2b-5670-bf7d-c768c92b52aa",
+        "1260dc02-3357-5528-b2b4-accfba563de4",
+        "bd466f92-f02b-576b-8742-8530d06f3e41",
+        "bfb0e170-7451-58fb-ad1f-ea29aed3bef2",
+        "b99ed163-cecd-553e-9665-ba599c633de6",
+        "3c27548f-3efb-5908-b550-5e42e1c84d6d",
+        "58b0bbfe-3972-5725-a2e5-d968ebdba8cc",
+        "dd8ec4b1-9066-5d0d-ae8a-2dee868f50f7",
+        "fefce9e6-dad1-5ec1-a647-2b00ca52c526",
+        "1c2eac99-b22b-5751-a8e7-358556c5ec11",
+        "64d293a8-25e0-5ab1-a7a6-d9e91978a310",
+        "620a3ea6-a525-5d78-a2e9-c960eaaba27f",
+        "da26447c-1975-511e-83eb-8871a96b922c",
+        "98b80f03-1c30-5c1c-a018-86b3ef953fc2",
+        "9147e59c-581b-51d9-834b-9e46851595ad",
+        "32bc3b33-0e27-5140-abe1-2bb48ed57536",
+        "146f0f79-d048-55cd-8972-d7b6fae32e19",
+        "e956ddeb-ce50-505e-8941-e894c90ab5f6",
+        "d073cdf6-0747-57c4-bdb6-5f6b656c33dc",
+        "05b5ca08-6c90-568d-87d4-a6a3570be4a8",
+        "d6e0d6b3-b8ff-5e3b-94ec-6d3eda7a5875",
+        "16f1310a-87e1-5586-95ed-73d08741a021",
+        "f3d0e58a-2cc7-5347-95d0-d258de934ce9",
+        "3c4a63d0-354a-5bfa-a7a3-ae468b9fcacd",
+        "fbe80a7a-919a-56dc-a064-0e34e38b08e7",
+        "0d1dbd9c-4c59-5b5d-adde-5cd3f29613da",
+        "f3028c6b-30d8-587b-a2e2-f76af89dc071",
+        "1c7abcc2-d66b-5ad4-b852-5e9257b351dd",
+        "ab49198e-b842-5a33-b7b3-83fe594fa83f",
+        "f84a93ca-9bd3-576f-a934-a523d1afed85",
+        "a717c32b-20de-5f2a-af51-39264838281c",
+        "4cf24cb2-a402-52a5-b236-45d361e3520f",
+        "5cce843b-bbc3-57a5-b16b-813e41083bf9",
+        "0542f1d2-d72d-5bb8-a6e7-088c21b7e27f",
+        "8fffe530-f5db-598f-abdd-d15b0c378019",
+        "b62568cb-7bcf-558a-aee6-08abd36d89c5",
+        "9fcbe4d0-2c24-5729-84ee-f0aff865c30b",
+        "234ac1ba-97a3-544c-b602-dc9b60007ae6",
+        "1135438e-dc4a-5996-b145-09ba985d090f",
+        "5e2c10b6-6393-5240-8aa1-415a2d25584d",
+        "6b995b38-94d6-5f67-b128-76903a843782",
+        "042aa2d5-6e2b-5de9-a2c2-2da9fc6a03c6",
+        "e490020c-40d2-53c3-a2f6-587f420278d2",
+        "f26ac191-fcd2-5703-89d3-de69441abaa5",
+        "e85b659c-f6fb-54df-915b-3807003721e3",
+        "f534212e-312e-54bb-9a61-9cf2b6da773d",
+        "67b13038-77bd-5ab4-a4f3-5693130b4899",
+        "0bbf0ef2-ca65-5449-9b0d-bf3df4c51e91",
+        "f3d7c1f8-114a-5df6-bda9-b39f55436949",
+        "d3450ece-1cbd-5485-ade1-09650429a8ac",
+        "054af227-c361-5ba7-a59a-0710a1663194",
+        "d2a045b1-d621-5bca-af3d-3b5a420ce10c",
+        "bfafc231-4139-5954-847a-1781ef5689ca",
+        "0a5f63c9-c902-5392-a4fa-c53b80827203",
+        "eb25ca68-4e76-5756-9e68-7f80da728042",
+        "5891b8b2-347f-54cb-a728-ee3f1fb52442",
+        "4eb1cbbe-c97c-5bcf-a2d9-a4681040296c",
+        "d90ba2b8-8edc-58cf-88f8-129060dfee2b",
+        "8cbf3275-8c69-5be1-88f2-d13136b3f564",
+        "716a5234-924d-58fd-9e08-9fdb10c2e210",
+        "b1646163-a7ed-5f72-9287-dc0f7d4f5312",
+        "9cbfd029-12ae-5543-945e-23694c6ed3cb",
+        "0a218c00-3a41-5869-9d85-2272e858b9ef",
+        "ed33de14-7de4-5f1a-a7be-39dce0e63661",
+        "80f72ab1-2e8b-5f7c-9505-1ecd9520dcec",
+        "198eeedf-8acc-5f1a-a386-a52be615073d",
+        "81e6e706-00e3-5542-b3c1-2797c464b377",
+        "3f3a0ced-e378-565e-8314-2b2c9487b661",
+        "bd66f688-3b43-572a-a340-9adbabe02c4d",
+        "ae1aa508-f4d6-5687-9998-ebf4d32d2811",
+        "37a56bde-a42d-5915-b0e9-c399e546fe4f",
+        "1800ff18-881e-5d0a-9db5-17ed1028f374"
+      ]
+    },
+    {
+      "id": "6f883b50-48f6-532e-9b4a-8a42ba3e6947",
+      "kind": "shape",
+      "name": "الشريط العلوي",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1440,
+          56
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "77e97a0a-96bb-521e-9fe3-95fed2293af0",
+      "kind": "shape",
+      "name": "فاصل الشريط العلوي",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          55
+        ],
+        "size": [
+          1440,
+          1
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "6f15331a-dc2b-5670-bf7d-c768c92b52aa",
+      "kind": "text",
+      "name": "اسم الملف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1180,
+          17
+        ],
+        "size": [
+          226,
+          24
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "شاشة الدفع — مسودة",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 14,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "1260dc02-3357-5528-b2b4-accfba563de4",
+      "kind": "text",
+      "name": "النسخة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1090,
+          18
+        ],
+        "size": [
+          72,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "النسخة ٣",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "bd466f92-f02b-576b-8742-8530d06f3e41",
+      "kind": "shape",
+      "name": "زر مشاركة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          986,
+          10
+        ],
+        "size": [
+          82,
+          36
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          55,
+          112,
+          238,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 6
+        }
+      }
+    },
+    {
+      "id": "bfb0e170-7451-58fb-ad1f-ea29aed3bef2",
+      "kind": "text",
+      "name": "نص مشاركة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          996,
+          18
+        ],
+        "size": [
+          62,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "text": {
+          "content": "مشاركة",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "center"
+        }
+      }
+    },
+    {
+      "id": "b99ed163-cecd-553e-9665-ba599c633de6",
+      "kind": "shape",
+      "name": "زر معاينة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          896,
+          10
+        ],
+        "size": [
+          78,
+          36
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 6
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "3c27548f-3efb-5908-b550-5e42e1c84d6d",
+      "kind": "image",
+      "name": "أيقونة مشاركة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1020,
+          16
+        ],
+        "size": [
+          20,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "eac00579-109d-5298-b61f-179110bb7445"
+        }
+      }
+    },
+    {
+      "id": "58b0bbfe-3972-5725-a2e5-d968ebdba8cc",
+      "kind": "image",
+      "name": "أيقونة معاينة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          906,
+          16
+        ],
+        "size": [
+          20,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "12a3a206-2ea7-508e-80db-330703e4dfb7"
+        }
+      }
+    },
+    {
+      "id": "dd8ec4b1-9066-5d0d-ae8a-2dee868f50f7",
+      "kind": "text",
+      "name": "نص معاينة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          929,
+          18
+        ],
+        "size": [
+          38,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "معاينة",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "center"
+        }
+      }
+    },
+    {
+      "id": "fefce9e6-dad1-5ec1-a647-2b00ca52c526",
+      "kind": "shape",
+      "name": "لوحة الخصائص",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          56
+        ],
+        "size": [
+          280,
+          844
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "1c2eac99-b22b-5751-a8e7-358556c5ec11",
+      "kind": "shape",
+      "name": "فاصل الخصائص",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          279,
+          56
+        ],
+        "size": [
+          1,
+          844
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "64d293a8-25e0-5ab1-a7a6-d9e91978a310",
+      "kind": "text",
+      "name": "عنوان الخصائص",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          75
+        ],
+        "size": [
+          240,
+          24
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "الخصائص",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 16,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "620a3ea6-a525-5d78-a2e9-c960eaaba27f",
+      "kind": "text",
+      "name": "العنصر المحدد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          110
+        ],
+        "size": [
+          240,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "إطار  ·  شاشة الدفع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "da26447c-1975-511e-83eb-8871a96b922c",
+      "kind": "shape",
+      "name": "فاصل القسم الموضع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          16,
+          145
+        ],
+        "size": [
+          248,
+          1
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "98b80f03-1c30-5c1c-a018-86b3ef953fc2",
+      "kind": "text",
+      "name": "عنوان الموضع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          159
+        ],
+        "size": [
+          240,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "الموضع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "9147e59c-581b-51d9-834b-9e46851595ad",
+      "kind": "text",
+      "name": "حقل X",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          190
+        ],
+        "size": [
+          24,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "X",
+          "font_family": "Inter",
+          "font_size": 11,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "32bc3b33-0e27-5140-abe1-2bb48ed57536",
+      "kind": "shape",
+      "name": "إدخال X",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          210
+        ],
+        "size": [
+          112,
+          34
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "146f0f79-d048-55cd-8972-d7b6fae32e19",
+      "kind": "text",
+      "name": "قيمة X",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          29,
+          218
+        ],
+        "size": [
+          94,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "248",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "e956ddeb-ce50-505e-8941-e894c90ab5f6",
+      "kind": "text",
+      "name": "حقل Y",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          146,
+          190
+        ],
+        "size": [
+          24,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "Y",
+          "font_family": "Inter",
+          "font_size": 11,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "d073cdf6-0747-57c4-bdb6-5f6b656c33dc",
+      "kind": "shape",
+      "name": "إدخال Y",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          146,
+          210
+        ],
+        "size": [
+          112,
+          34
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "05b5ca08-6c90-568d-87d4-a6a3570be4a8",
+      "kind": "text",
+      "name": "قيمة Y",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          155,
+          218
+        ],
+        "size": [
+          94,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "128",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "d6e0d6b3-b8ff-5e3b-94ec-6d3eda7a5875",
+      "kind": "text",
+      "name": "العرض",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          263
+        ],
+        "size": [
+          100,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "العرض",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "16f1310a-87e1-5586-95ed-73d08741a021",
+      "kind": "text",
+      "name": "الارتفاع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          146,
+          263
+        ],
+        "size": [
+          100,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "الارتفاع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "f3d0e58a-2cc7-5347-95d0-d258de934ce9",
+      "kind": "shape",
+      "name": "إدخال العرض",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          285
+        ],
+        "size": [
+          112,
+          34
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "3c4a63d0-354a-5bfa-a7a3-ae468b9fcacd",
+      "kind": "shape",
+      "name": "إدخال الارتفاع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          146,
+          285
+        ],
+        "size": [
+          112,
+          34
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "fbe80a7a-919a-56dc-a064-0e34e38b08e7",
+      "kind": "text",
+      "name": "قيمة العرض",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          29,
+          293
+        ],
+        "size": [
+          94,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "390",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "0d1dbd9c-4c59-5b5d-adde-5cd3f29613da",
+      "kind": "text",
+      "name": "قيمة الارتفاع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          155,
+          293
+        ],
+        "size": [
+          94,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "844",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "f3028c6b-30d8-587b-a2e2-f76af89dc071",
+      "kind": "shape",
+      "name": "فاصل القسم المظهر",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          16,
+          337
+        ],
+        "size": [
+          248,
+          1
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "1c7abcc2-d66b-5ad4-b852-5e9257b351dd",
+      "kind": "text",
+      "name": "عنوان التعبئة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          352
+        ],
+        "size": [
+          100,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "التعبئة",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "ab49198e-b842-5a33-b7b3-83fe594fa83f",
+      "kind": "shape",
+      "name": "لون التعبئة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          382
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          248,
+          249,
+          251,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "f84a93ca-9bd3-576f-a934-a523d1afed85",
+      "kind": "text",
+      "name": "قيمة التعبئة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          52,
+          384
+        ],
+        "size": [
+          150,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "#F8F9FB",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "a717c32b-20de-5f2a-af51-39264838281c",
+      "kind": "text",
+      "name": "عنوان الحدود",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          423
+        ],
+        "size": [
+          100,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "الحدود",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "4cf24cb2-a402-52a5-b236-45d361e3520f",
+      "kind": "shape",
+      "name": "لون الحدود",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          453
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          214,
+          219,
+          228,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "5cce843b-bbc3-57a5-b16b-813e41083bf9",
+      "kind": "text",
+      "name": "قيمة الحدود",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          52,
+          455
+        ],
+        "size": [
+          170,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "#D6DBE4  ·  1",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "0542f1d2-d72d-5bb8-a6e7-088c21b7e27f",
+      "kind": "shape",
+      "name": "فاصل القسم التخطيط",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          16,
+          493
+        ],
+        "size": [
+          248,
+          1
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "8fffe530-f5db-598f-abdd-d15b0c378019",
+      "kind": "text",
+      "name": "عنوان التخطيط",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          508
+        ],
+        "size": [
+          220,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "التخطيط التلقائي",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "b62568cb-7bcf-558a-aee6-08abd36d89c5",
+      "kind": "text",
+      "name": "نوع التخطيط",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          540
+        ],
+        "size": [
+          230,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "إطار — Auto Layout · Frame",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "9fcbe4d0-2c24-5729-84ee-f0aff865c30b",
+      "kind": "text",
+      "name": "عنوان المسافة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          576
+        ],
+        "size": [
+          220,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "المسافة بين العناصر",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "234ac1ba-97a3-544c-b602-dc9b60007ae6",
+      "kind": "shape",
+      "name": "إدخال المسافة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          20,
+          606
+        ],
+        "size": [
+          112,
+          34
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          244,
+          246,
+          249,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 4
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "1135438e-dc4a-5996-b145-09ba985d090f",
+      "kind": "text",
+      "name": "قيمة المسافة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          29,
+          614
+        ],
+        "size": [
+          94,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "16",
+          "font_family": "Inter",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "5e2c10b6-6393-5240-8aa1-415a2d25584d",
+      "kind": "shape",
+      "name": "شريط الأدوات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          296,
+          72
+        ],
+        "size": [
+          48,
+          276
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 8
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "6b995b38-94d6-5f67-b128-76903a843782",
+      "kind": "shape",
+      "name": "تمييز أداة تحديد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          302,
+          84
+        ],
+        "size": [
+          36,
+          38
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          232,
+          240,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 6
+        }
+      }
+    },
+    {
+      "id": "042aa2d5-6e2b-5de9-a2c2-2da9fc6a03c6",
+      "kind": "image",
+      "name": "أيقونة أداة تحديد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          310,
+          91
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "fda57a1c-9159-50c7-9325-af850ef5174c"
+        }
+      }
+    },
+    {
+      "id": "e490020c-40d2-53c3-a2f6-587f420278d2",
+      "kind": "text",
+      "name": "تسمية أداة تحديد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          350,
+          91
+        ],
+        "size": [
+          62,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "تحديد",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "f26ac191-fcd2-5703-89d3-de69441abaa5",
+      "kind": "image",
+      "name": "أيقونة أداة إطار",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          310,
+          141
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "991dbd5b-02be-5784-9fb3-83d42a920d3a"
+        }
+      }
+    },
+    {
+      "id": "e85b659c-f6fb-54df-915b-3807003721e3",
+      "kind": "text",
+      "name": "تسمية أداة إطار",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          350,
+          141
+        ],
+        "size": [
+          62,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "إطار",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "f534212e-312e-54bb-9a61-9cf2b6da773d",
+      "kind": "image",
+      "name": "أيقونة أداة مستطيل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          310,
+          191
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "9749335e-8a26-5852-b94f-8b36ed9880f4"
+        }
+      }
+    },
+    {
+      "id": "67b13038-77bd-5ab4-a4f3-5693130b4899",
+      "kind": "text",
+      "name": "تسمية أداة مستطيل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          350,
+          191
+        ],
+        "size": [
+          62,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "مستطيل",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "0bbf0ef2-ca65-5449-9b0d-bf3df4c51e91",
+      "kind": "image",
+      "name": "أيقونة أداة نص",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          310,
+          241
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "93e965ba-650c-5475-bbfa-a98b27146721"
+        }
+      }
+    },
+    {
+      "id": "f3d7c1f8-114a-5df6-bda9-b39f55436949",
+      "kind": "text",
+      "name": "تسمية أداة نص",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          350,
+          241
+        ],
+        "size": [
+          62,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "نص",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "d3450ece-1cbd-5485-ade1-09650429a8ac",
+      "kind": "image",
+      "name": "أيقونة أداة قلم",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          310,
+          291
+        ],
+        "size": [
+          22,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "d619eb34-aa4a-510e-91a3-749eb04f87ae"
+        }
+      }
+    },
+    {
+      "id": "054af227-c361-5ba7-a59a-0710a1663194",
+      "kind": "text",
+      "name": "تسمية أداة قلم",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          350,
+          291
+        ],
+        "size": [
+          62,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "قلم",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "d2a045b1-d621-5bca-af3d-3b5a420ce10c",
+      "kind": "shape",
+      "name": "منطقة العمل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          365,
+          72
+        ],
+        "size": [
+          705,
+          790
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          237,
+          240,
+          245,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 8
+        }
+      }
+    },
+    {
+      "id": "bfafc231-4139-5954-847a-1781ef5689ca",
+      "kind": "text",
+      "name": "اسم الصفحة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          392,
+          88
+        ],
+        "size": [
+          140,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "الصفحة ١",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "0a5f63c9-c902-5392-a4fa-c53b80827203",
+      "kind": "text",
+      "name": "تكبير اللوحة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1000,
+          88
+        ],
+        "size": [
+          42,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "100%",
+          "font_family": "Inter",
+          "font_size": 11,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "eb25ca68-4e76-5756-9e68-7f80da728042",
+      "kind": "group",
+      "name": "مشهد شاشة الهاتف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1440,
+          900
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "e67c322a-ae89-59e3-bc72-4658483fc198",
+        "d3a35eba-e81a-54bd-b595-b7a408d588f1",
+        "88ec8eca-b89a-57bf-92bc-dcc7dac224a8",
+        "28aadefa-b593-5f1e-89cf-7a3fe5dc4fbb",
+        "7de6b319-925a-5e03-9647-b6cdcbb9bec2",
+        "0eda2305-ccf2-55b7-b987-39eab96e83bb",
+        "a2ff086c-9654-5a38-949e-b3c99e62bc7c",
+        "d4904a0b-d77b-5334-82d8-1566f5c137fa",
+        "d117e105-e82a-543d-a0e8-765d7a05594d",
+        "f74eb306-9ae9-556e-b497-cc36ecf4e850",
+        "66323487-3f0d-592e-a3d1-17dca8bf7b85",
+        "841dbbb0-2c99-5c51-b75a-2256c656f917",
+        "da3d2c41-4666-563f-aad6-884a66f63f8c",
+        "162d308a-137a-5a53-829c-5444a4fa3e72",
+        "ca6ac241-0b50-5dbf-9fa0-90ca7edd8bca"
+      ]
+    },
+    {
+      "id": "e67c322a-ae89-59e3-bc72-4658483fc198",
+      "kind": "shape",
+      "name": "ظل الهاتف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          573,
+          150
+        ],
+        "size": [
+          296,
+          632
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          224,
+          228,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 28
+        }
+      }
+    },
+    {
+      "id": "d3a35eba-e81a-54bd-b595-b7a408d588f1",
+      "kind": "shape",
+      "name": "إطار الهاتف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          568,
+          144
+        ],
+        "size": [
+          296,
+          632
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 26
+        },
+        "stroke": {
+          "color": [
+            213,
+            218,
+            227,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "88ec8eca-b89a-57bf-92bc-dcc7dac224a8",
+      "kind": "shape",
+      "name": "شاشة الهاتف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          578,
+          154
+        ],
+        "size": [
+          276,
+          612
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          250,
+          251,
+          253,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 20
+        }
+      }
+    },
+    {
+      "id": "28aadefa-b593-5f1e-89cf-7a3fe5dc4fbb",
+      "kind": "text",
+      "name": "وقت الهاتف",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          598,
+          170
+        ],
+        "size": [
+          52,
+          18
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "9:41",
+          "font_family": "Inter",
+          "font_size": 11,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "7de6b319-925a-5e03-9647-b6cdcbb9bec2",
+      "kind": "text",
+      "name": "عنوان الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          598,
+          210
+        ],
+        "size": [
+          236,
+          36
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "إتمام الشراء",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 20,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "0eda2305-ccf2-55b7-b987-39eab96e83bb",
+      "kind": "text",
+      "name": "وصف الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          598,
+          252
+        ],
+        "size": [
+          236,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "راجع طلبك وأكمل عملية الدفع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "a2ff086c-9654-5a38-949e-b3c99e62bc7c",
+      "kind": "shape",
+      "name": "بطاقة المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          594,
+          296
+        ],
+        "size": [
+          244,
+          188
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 10
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "d4904a0b-d77b-5334-82d8-1566f5c137fa",
+      "kind": "image",
+      "name": "صورة المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          606,
+          308
+        ],
+        "size": [
+          220,
+          104
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "08b3d3db-edcb-5cc4-a698-02b3c4c5bc69"
+        }
+      }
+    },
+    {
+      "id": "d117e105-e82a-543d-a0e8-765d7a05594d",
+      "kind": "text",
+      "name": "اسم المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          608,
+          421
+        ],
+        "size": [
+          210,
+          24
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "سماعات لاسلكية",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 15,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "f74eb306-9ae9-556e-b497-cc36ecf4e850",
+      "kind": "text",
+      "name": "سعر المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          608,
+          452
+        ],
+        "size": [
+          210,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "349 ر.س",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "66323487-3f0d-592e-a3d1-17dca8bf7b85",
+      "kind": "text",
+      "name": "عنوان طريقة الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          598,
+          513
+        ],
+        "size": [
+          236,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "طريقة الدفع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "841dbbb0-2c99-5c51-b75a-2256c656f917",
+      "kind": "shape",
+      "name": "بطاقة البطاقة البنكية",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          594,
+          543
+        ],
+        "size": [
+          244,
+          48
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 8
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "da3d2c41-4666-563f-aad6-884a66f63f8c",
+      "kind": "text",
+      "name": "رقم البطاقة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          608,
+          556
+        ],
+        "size": [
+          210,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "••••  ••••  ••••  ٤٢٨١",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "162d308a-137a-5a53-829c-5444a4fa3e72",
+      "kind": "shape",
+      "name": "زر تأكيد الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          594,
+          704
+        ],
+        "size": [
+          244,
+          46
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          55,
+          112,
+          238,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 8
+        }
+      }
+    },
+    {
+      "id": "ca6ac241-0b50-5dbf-9fa0-90ca7edd8bca",
+      "kind": "text",
+      "name": "نص تأكيد الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          604,
+          715
+        ],
+        "size": [
+          224,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "text": {
+          "content": "ادفع الآن",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 14,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "center"
+        }
+      }
+    },
+    {
+      "id": "5891b8b2-347f-54cb-a728-ee3f1fb52442",
+      "kind": "shape",
+      "name": "لوحة الطبقات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1090,
+          56
+        ],
+        "size": [
+          350,
+          440
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "4eb1cbbe-c97c-5bcf-a2d9-a4681040296c",
+      "kind": "shape",
+      "name": "فاصل الطبقات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1089,
+          56
+        ],
+        "size": [
+          1,
+          844
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "d90ba2b8-8edc-58cf-88f8-129060dfee2b",
+      "kind": "text",
+      "name": "عنوان الطبقات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1110,
+          75
+        ],
+        "size": [
+          300,
+          24
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "الطبقات",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 16,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "8cbf3275-8c69-5be1-88f2-d13136b3f564",
+      "kind": "text",
+      "name": "اسم الصفحة في الشجرة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1110,
+          112
+        ],
+        "size": [
+          286,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "الصفحة ١",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "716a5234-924d-58fd-9e08-9fdb10c2e210",
+      "kind": "group",
+      "name": "شجرة الطبقات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1440,
+          900
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "07aba943-6f1b-5dbb-a87a-8b8b6a778b9e",
+        "9ecc5bc0-e9b4-5f57-a848-6c56010dd93f",
+        "dbddd6f7-6937-5ea3-8408-a26143be71db",
+        "24ff111f-3466-5129-9ecb-fcab949b7b82",
+        "4ceb8261-c5c7-50b0-88fd-f6241360cff0"
+      ]
+    },
+    {
+      "id": "07aba943-6f1b-5dbb-a87a-8b8b6a778b9e",
+      "kind": "text",
+      "name": "طبقة شاشة الدفع",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1120,
+          150
+        ],
+        "size": [
+          280,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "▾  شاشة الدفع",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 13,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "9ecc5bc0-e9b4-5f57-a848-6c56010dd93f",
+      "kind": "text",
+      "name": "طبقة شريط التنقل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1140,
+          184
+        ],
+        "size": [
+          260,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "　▾  شريط التنقل",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "dbddd6f7-6937-5ea3-8408-a26143be71db",
+      "kind": "text",
+      "name": "طبقة إتمام الشراء",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1162,
+          216
+        ],
+        "size": [
+          238,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "　　T  إتمام الشراء",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "24ff111f-3466-5129-9ecb-fcab949b7b82",
+      "kind": "text",
+      "name": "طبقة بطاقة المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1140,
+          252
+        ],
+        "size": [
+          260,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "　▱  بطاقة المنتج",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "4ceb8261-c5c7-50b0-88fd-f6241360cff0",
+      "kind": "text",
+      "name": "طبقة صورة المنتج",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1140,
+          286
+        ],
+        "size": [
+          260,
+          22
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "　▧  صورة المنتج",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "b1646163-a7ed-5f72-9287-dc0f7d4f5312",
+      "kind": "shape",
+      "name": "فاصل مساعد الذكاء",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1090,
+          496
+        ],
+        "size": [
+          350,
+          1
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          226,
+          229,
+          235,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        }
+      }
+    },
+    {
+      "id": "9cbfd029-12ae-5543-945e-23694c6ed3cb",
+      "kind": "text",
+      "name": "عنوان المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1110,
+          514
+        ],
+        "size": [
+          300,
+          24
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "المساعد الذكي",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 15,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "0a218c00-3a41-5869-9d85-2272e858b9ef",
+      "kind": "shape",
+      "name": "بطاقة اقتراح المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1106,
+          552
+        ],
+        "size": [
+          318,
+          254
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          250,
+          251,
+          253,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 10
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "ed33de14-7de4-5f1a-a7be-39dce0e63661",
+      "kind": "text",
+      "name": "موجه المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1122,
+          570
+        ],
+        "size": [
+          286,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          119,
+          127,
+          140,
+          255
+        ],
+        "text": {
+          "content": "اطلب من المساعد",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "80f72ab1-2e8b-5f7c-9505-1ecd9520dcec",
+      "kind": "shape",
+      "name": "حقل طلب المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1120,
+          599
+        ],
+        "size": [
+          290,
+          62
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 7
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "198eeedf-8acc-5f1a-a386-a52be615073d",
+      "kind": "text",
+      "name": "طلب المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1132,
+          610
+        ],
+        "size": [
+          266,
+          42
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "اجعل الزر أكبر وغيّر لونه إلى الأخضر",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "81e6e706-00e3-5542-b3c1-2797c464b377",
+      "kind": "shape",
+      "name": "ملخص تعديل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1120,
+          675
+        ],
+        "size": [
+          290,
+          46
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          237,
+          244,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 7
+        }
+      }
+    },
+    {
+      "id": "3f3a0ced-e378-565e-8314-2b2c9487b661",
+      "kind": "text",
+      "name": "نتيجة المساعد",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1132,
+          688
+        ],
+        "size": [
+          266,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          55,
+          112,
+          238,
+          255
+        ],
+        "text": {
+          "content": "تم تعديل ٣ طبقات",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "bd66f688-3b43-572a-a340-9adbabe02c4d",
+      "kind": "shape",
+      "name": "زر رفض",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1120,
+          739
+        ],
+        "size": [
+          80,
+          36
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 6
+        },
+        "stroke": {
+          "color": [
+            226,
+            229,
+            235,
+            255
+          ],
+          "width": 1
+        }
+      }
+    },
+    {
+      "id": "ae1aa508-f4d6-5687-9998-ebf4d32d2811",
+      "kind": "text",
+      "name": "نص رفض",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1128,
+          747
+        ],
+        "size": [
+          64,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          39,
+          44,
+          54,
+          255
+        ],
+        "text": {
+          "content": "رفض",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "center"
+        }
+      }
+    },
+    {
+      "id": "37a56bde-a42d-5915-b0e9-c399e546fe4f",
+      "kind": "shape",
+      "name": "زر قبول",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1318,
+          739
+        ],
+        "size": [
+          92,
+          36
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          55,
+          112,
+          238,
+          255
+        ],
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 6
+        }
+      }
+    },
+    {
+      "id": "1800ff18-881e-5d0a-9db5-17ed1028f374",
+      "kind": "text",
+      "name": "نص قبول",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          1326,
+          747
+        ],
+        "size": [
+          76,
+          20
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "text": {
+          "content": "قبول",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 12,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "center"
+        }
+      }
+    }
+  ]
+}

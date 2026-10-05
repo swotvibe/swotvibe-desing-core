@@ -15,6 +15,8 @@
 //! Aligned with the logical modules defined in the technical specification:
 //!
 //! - [`ids`] — permanent identity types and their generators.
+//! - [`geometry`] — finite scalars, sizes, and affine transforms (ADR-0002).
+//! - [`props`] — node geometry, paint, text, image, and frame-layout properties.
 //! - [`model`] — documents, pages, nodes, styles, and relations.
 //! - [`commands`] — typed commands and pre-application validation.
 //! - [`transaction`] — atomic application and change-set computation.
@@ -49,21 +51,29 @@
 
 pub mod commands;
 pub mod engine;
+pub mod geometry;
 pub mod history;
 pub mod ids;
 pub mod model;
+pub mod props;
 pub mod snapshot;
 pub mod transaction;
 pub mod validation;
 
 pub use commands::{Command, CommandError, CommandErrorCode, NodePlacement, Position};
 pub use engine::DocumentEngine;
+pub use geometry::{GeometryError, Scalar, Size, Transform};
 pub use history::{
     DEFAULT_HISTORY_CAPACITY, History, HistoryEntry, HistoryError, inverse_entry,
     inverse_with_subtree,
 };
 pub use ids::{AssetId, DocumentId, IdError, IdKind, NodeId, PageId};
 pub use model::{Asset, Document, Extensions, Node, NodeKind, Page, Revision};
+pub use props::{
+    Axis, Color, Content, CrossAlign, FlexLayout, FrameLayout, FrameProps, ImageProps, Insets,
+    MainAlign, NodeProps, PropsError, ShapeGeometry, ShapeProps, Sizing, Stroke, TextAlign,
+    TextDirection, TextProps,
+};
 pub use snapshot::Snapshot;
 pub use transaction::{BatchError, ChangeSet, Commit, Effect, apply_batch, apply_batch_at_current};
 pub use validation::{

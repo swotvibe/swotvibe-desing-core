@@ -9,9 +9,11 @@
 //!
 //! ## Status
 //!
-//! Schema [`SCHEMA_VERSION`](crate::dto::SCHEMA_VERSION) is the first version,
-//! so there are no steps yet. The entry point exists so the migration seam is
-//! exercised and grows in one place rather than being rediscovered with v2.
+//! - **v1 → v2** adds node properties. The step is a version bump: v2 reads an
+//!   absent `props` record as "the defaults for this node's kind", so a v1 file
+//!   needs no data translation and a re-save writes the properties explicitly.
+//!   Keeping the rule in one place means a later additive field needs no
+//!   migration step either.
 
 use crate::convert::{self, ImportError};
 use crate::dto::DtoDocument;
@@ -43,7 +45,7 @@ pub fn migrate_to_current(mut dto: DtoDocument) -> Result<DtoDocument, ImportErr
 
     // Ordered, explicit steps. Each step must be a pure function of the DTO
     // and must bump `schema_version` so a partially migrated file is never
-    // mistaken for a current one. No steps exist before v2.
+    // mistaken for a current one.
     while dto.schema_version < crate::dto::SCHEMA_VERSION {
         let next = step(dto)?;
         dto = next;
@@ -54,21 +56,30 @@ pub fn migrate_to_current(mut dto: DtoDocument) -> Result<DtoDocument, ImportErr
 
 /// Applies exactly one migration step.
 ///
-/// With only v1 defined, the only reachable case is "already current", which is
-/// handled by the caller's loop condition. A version below
+/// A version below
 /// [`OLDEST_SUPPORTED_VERSION`](crate::convert::OLDEST_SUPPORTED_VERSION) has no
-/// defined schema and is reported as a past version, not a future one.
-fn step(dto: DtoDocument) -> Result<DtoDocument, ImportError> {
+/// defined schema and is reported as a past version, not a future one. Any
+/// other gap is a missing step, which is reported rather than skipped so a file
+/// can never be opened as a version it is not.
+fn step(mut dto: DtoDocument) -> Result<DtoDocument, ImportError> {
     if dto.schema_version < crate::convert::OLDEST_SUPPORTED_VERSION {
         return Err(ImportError::UnsupportedPastVersion {
             found: dto.schema_version,
             oldest_supported: crate::convert::OLDEST_SUPPORTED_VERSION,
         });
     }
-    Err(ImportError::UnsupportedFutureVersion {
-        found: dto.schema_version,
-        supported: crate::dto::SCHEMA_VERSION,
-    })
+    match dto.schema_version {
+        // v1 carried no properties. v2 reads an absent record as the kind's
+        // defaults, so the step only records that the file now includes them.
+        1 => {
+            dto.schema_version = 2;
+            Ok(dto)
+        }
+        version => Err(ImportError::UnsupportedFutureVersion {
+            found: version,
+            supported: crate::dto::SCHEMA_VERSION,
+        }),
+    }
 }
 
 /// Migrates a DTO to the current schema and rebuilds the runtime document.

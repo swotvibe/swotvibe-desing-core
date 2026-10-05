@@ -23,6 +23,7 @@
 use crate::commands::{Command, CommandError, CommandErrorCode, NodePlacement, Position};
 use crate::ids::{NodeId, PageId};
 use crate::model::{Document, Node, Page, Revision};
+use crate::props::NodeProps;
 use crate::transaction::{BatchError, Commit, Effect, apply_batch};
 
 #[cfg(test)]
@@ -545,6 +546,10 @@ fn effect_inverse(effect: &Effect) -> Option<Command> {
             id: *node,
             name: old_name.clone(),
         }),
+        Effect::NodePropsChanged { node, old_props } => Some(Command::SetNodeProps {
+            id: *node,
+            props: old_props.clone(),
+        }),
         Effect::NodeReordered {
             parent,
             page,
@@ -649,6 +654,7 @@ pub fn inverse_with_subtree(before: &Document, commit: &Commit) -> HistoryEntry 
                         name: removed.name.clone(),
                         parent: placement(*old_parent, *old_index, *old_page),
                     });
+                    push_props(removed, &mut inverse);
                     collect_subtree(before, *node, &mut inverse);
                 }
                 None => inverse.extend(effect_inverse(effect)),
@@ -678,7 +684,18 @@ fn collect_subtree(doc: &Document, node: NodeId, out: &mut Vec<Command>) {
             name: child_node.name.clone(),
             parent: placement(Some(node), index, uuid_placeholder_page()),
         });
+        push_props(child_node, out);
         collect_subtree(doc, *child, out);
+    }
+}
+
+/// Restores a recreated node's properties when they differ from the defaults.
+fn push_props(node: &Node, out: &mut Vec<Command>) {
+    if node.props != NodeProps::default_for(node.kind) {
+        out.push(Command::SetNodeProps {
+            id: node.id,
+            props: Box::new(node.props.clone()),
+        });
     }
 }
 

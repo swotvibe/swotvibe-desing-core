@@ -1,0 +1,126 @@
+{
+  "fixture": "coordinate-contract",
+  "schemaVersion": 1,
+  "license": "MIT (this repository), generated for ADR-0002",
+  "description": "Golden coordinate and transform cases for ADR-0002. Each case lists ops from the outermost node to the innermost local transform, so \"ops\" is composed left to right: ops[0] is the ancestor. Points are design units in a y-down space, so a positive rotation turns +x toward +y and is clockwise on screen.",
+  "tolerance": 1e-9,
+  "cases": [
+    {
+      "name": "identity",
+      "ops": [],
+      "coefficients": [1, 0, 0, 1, 0, 0],
+      "svg": "matrix(1 0 0 1 0 0)",
+      "svgExact": true,
+      "points": [
+        { "in": [7, -3], "out": [7, -3] },
+        { "in": [0, 0], "out": [0, 0] }
+      ]
+    },
+    {
+      "name": "translate",
+      "ops": [["translate", 10, 20]],
+      "coefficients": [1, 0, 0, 1, 10, 20],
+      "svg": "matrix(1 0 0 1 10 20)",
+      "svgExact": true,
+      "points": [
+        { "in": [1, 2], "out": [11, 22] },
+        { "in": [-4, 0], "out": [6, 20] }
+      ]
+    },
+    {
+      "name": "scale",
+      "ops": [["scale", 2, 3]],
+      "coefficients": [2, 0, 0, 3, 0, 0],
+      "svg": "matrix(2 0 0 3 0 0)",
+      "svgExact": true,
+      "points": [
+        { "in": [1, 1], "out": [2, 3] },
+        { "in": [0.5, -2], "out": [1, -6] }
+      ]
+    },
+    {
+      "name": "rotate_quarter_turn_is_clockwise_on_screen",
+      "ops": [["rotate", 90]],
+      "coefficients": [0, 1, -1, 0, 0, 0],
+      "svg": "matrix(0 1 -1 0 0 0)",
+      "points": [
+        { "in": [1, 0], "out": [0, 1] },
+        { "in": [0, 1], "out": [-1, 0] }
+      ]
+    },
+    {
+      "name": "rotate_eighth_turn",
+      "ops": [["rotate", 45]],
+      "svg": "matrix(0.7071067811865476 0.7071067811865476 -0.7071067811865476 0.7071067811865476 0 0)",
+      "points": [
+        { "in": [1, 0], "out": [0.7071067811865476, 0.7071067811865476] }
+      ]
+    },
+    {
+      "name": "rotate_negative_is_counter_clockwise_on_screen",
+      "ops": [["rotate", -90]],
+      "points": [{ "in": [1, 0], "out": [0, -1] }]
+    },
+    {
+      "name": "nested_translate_rotate_scale",
+      "ops": [["translate", 10, 5], ["rotate", 90], ["scale", 2, 4]],
+      "svg": "matrix(0 2 -4 0 10 5)",
+      "points": [
+        { "in": [0, 0], "out": [10, 5] },
+        { "in": [1, 1], "out": [6, 7] }
+      ],
+      "equivalentOps": [
+        [
+          ["matrix", 0, 2, -4, 0, 10, 5]
+        ]
+      ]
+    },
+    {
+      "name": "nested_four_levels",
+      "ops": [
+        ["translate", 1, 2],
+        ["rotate", 90],
+        ["scale", 2, 2],
+        ["translate", 3, 3]
+      ],
+      "points": [
+        { "in": [0, 0], "out": [-5, 8] },
+        { "in": [1, 0], "out": [-5, 10] }
+      ]
+    },
+    {
+      "name": "nested_exact_matrices",
+      "ops": [
+        ["matrix", 1, 0, 0, 1, 10, 5],
+        ["matrix", 2, 0, 0, 3, 1, 1]
+      ],
+      "coefficients": [2, 0, 0, 3, 11, 6],
+      "svg": "matrix(2 0 0 3 11 6)",
+      "svgExact": true,
+      "points": [
+        { "in": [0, 0], "out": [11, 6] },
+        { "in": [1, 1], "out": [13, 9] }
+      ],
+      "invertible": true,
+      "invertiblePoints": [
+        [0, 0],
+        [1, 1],
+        [-4, 2.5]
+      ]
+    },
+    {
+      "name": "mirrored_scale_flips_orientation",
+      "ops": [["scale", -1, 1]],
+      "coefficients": [-1, 0, 0, 1, 0, 0],
+      "svg": "matrix(-1 0 0 1 0 0)",
+      "svgExact": true,
+      "points": [{ "in": [2, 3], "out": [-2, 3] }]
+    },
+    {
+      "name": "degenerate_scale_has_no_inverse",
+      "ops": [["scale", 0, 1]],
+      "invertible": false,
+      "points": [{ "in": [5, 5], "out": [0, 5] }]
+    }
+  ]
+}

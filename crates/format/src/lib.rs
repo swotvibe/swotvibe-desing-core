@@ -20,9 +20,10 @@
 //!
 //! ## Status
 //!
-//! Schema v1, the restricted ZIP64 codec, binary asset store, migrations, and
-//! unknown-field preservation are implemented. Release readiness remains
-//! gated on representative-size, cross-platform, and extended fuzz campaigns.
+//! Schema v2, the restricted ZIP64 codec, binary asset store, migrations, and
+//! unknown-field preservation are implemented. v2 adds node properties to the
+//! v1 structure, with a v1 → v2 migration. Release readiness remains gated on
+//! representative-size, cross-platform, and extended fuzz campaigns.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -32,6 +33,7 @@ pub mod convert;
 pub mod dto;
 pub mod json;
 pub mod migrate;
+pub mod node_props;
 
 pub use bundle::{Bundle, BundleError, BundleLimits, pack as pack_bundle, unpack as unpack_bundle};
 pub use convert::{
@@ -41,3 +43,7 @@ pub use convert::{
 pub use dto::{DtoAsset, DtoDocument, DtoNode, DtoPage, Extensions, SCHEMA_VERSION};
 pub use json::{JsonError, ReadLimits, from_json, from_json_with_limits, to_json};
 pub use migrate::{import_migrated, migrate_to_current};
+pub use node_props::{
+    DtoFrameProps, DtoImageProps, DtoInsets, DtoProps, DtoShapeProps, DtoStroke, DtoTextProps,
+    PropsDtoError, props_from_dto, props_to_dto,
+};

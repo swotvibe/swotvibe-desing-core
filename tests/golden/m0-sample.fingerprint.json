@@ -1,0 +1,31 @@
+{
+  "background": [
+    255,
+    255,
+    255,
+    255
+  ],
+  "fonts": [
+    {
+      "bytes": 876576,
+      "family": "Inter",
+      "index": 0,
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    },
+    {
+      "bytes": 844676,
+      "family": "Noto Sans Arabic",
+      "index": 0,
+      "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e"
+    }
+  ],
+  "layoutEngine": "taffy 0.14.0",
+  "pixelTolerance": 2,
+  "pixels": [
+    480,
+    320
+  ],
+  "renderEngine": "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD)",
+  "reviewed": "pending human review of tests/golden/m0-sample.png",
+  "scale": 1.0
+}

@@ -8,3 +8,8 @@ rust-version.workspace = true
 
 [dependencies]
 swotvibe-core.workspace = true
+swotvibe-text.workspace = true
+taffy.workspace = true
+
+[dev-dependencies]
+swotvibe-format.workspace = true

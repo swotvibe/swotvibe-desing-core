@@ -1,0 +1,107 @@
+{
+  "schema_version": 2,
+  "id": "018f0000-0000-7000-8000-000000000021",
+  "pages": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000022",
+      "name": "Page 1",
+      "roots": ["018f0000-0000-7000-8000-000000020001"]
+    }
+  ],
+  "assets": [],
+  "nodes": [
+    {
+      "id": "018f0000-0000-7000-8000-000000020001",
+      "kind": "frame",
+      "name": "Card",
+      "children": [
+        "018f0000-0000-7000-8000-000000020002",
+        "018f0000-0000-7000-8000-000000020003",
+        "018f0000-0000-7000-8000-000000020004",
+        "018f0000-0000-7000-8000-000000020005"
+      ],
+      "props": {
+        "transform": [1, 0, 0, 1, 40, 40],
+        "size": [400, 240],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [255, 255, 255, 255],
+        "stroke": { "color": [200, 205, 215, 255], "width": 1 },
+        "frame": {
+          "layout": "flex",
+          "direction": "column",
+          "gap": 12,
+          "padding": { "top": 16, "right": 16, "bottom": 16, "left": 16 },
+          "main_align": "start",
+          "cross_align": "start"
+        }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000020002",
+      "kind": "shape",
+      "name": "Header",
+      "props": {
+        "transform": [1, 0, 0, 1, 0, 0],
+        "size": [368, 48],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [76, 110, 245, 255],
+        "shape": { "geometry": "rect", "corner_radius": 8 }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000020003",
+      "kind": "text",
+      "name": "Latin",
+      "props": {
+        "transform": [1, 0, 0, 1, 0, 0],
+        "size": [0, 0],
+        "width": "hug",
+        "height": "hug",
+        "fill": [26, 26, 26, 255],
+        "text": {
+          "content": "Hello, SwotVibe!",
+          "font_family": "Inter",
+          "font_size": 24,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000020004",
+      "kind": "text",
+      "name": "Arabic",
+      "props": {
+        "transform": [1, 0, 0, 1, 0, 0],
+        "size": [0, 0],
+        "width": "hug",
+        "height": "hug",
+        "fill": [26, 26, 26, 255],
+        "text": {
+          "content": "مرحبا بالعالم",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 20,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "start"
+        }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000020005",
+      "kind": "shape",
+      "name": "Dot",
+      "props": {
+        "transform": [1, 0, 0, 1, 24, 0],
+        "size": [32, 32],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [255, 107, 107, 255],
+        "shape": { "geometry": "ellipse", "corner_radius": 0 }
+      }
+    }
+  ]
+}

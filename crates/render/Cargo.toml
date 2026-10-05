@@ -8,3 +8,12 @@ rust-version.workspace = true
 
 [dependencies]
 swotvibe-core.workspace = true
+swotvibe-text.workspace = true
+swotvibe-layout = { path = "../layout", version = "0.1.0" }
+vello_cpu.workspace = true
+png.workspace = true
+resvg.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+swotvibe-format.workspace = true

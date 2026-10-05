@@ -22,6 +22,13 @@ serde = { version = "1.0.229", default-features = false, features = ["std", "der
 serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
 thiserror = "2.0.21"
 uuid = { version = "1.27.0", default-features = false, features = ["v4", "std"] }
+parley = { version = "=0.11.1", default-features = false, features = ["std"] }
+skrifa = { version = "=0.44.0", default-features = false, features = ["std"] }
+taffy = { version = "=0.14.0", default-features = false, features = ["std", "taffy_tree", "flexbox", "block_layout", "content_size"] }
+vello_cpu = { version = "=0.3.0", default-features = false, features = ["std", "f32_pipeline"] }
+png = "0.18.1"
+resvg = { version = "=0.48.1", default-features = false }
+sha2 = "0.10.9"
 
 # Internal crates
 swotvibe-core = { path = "crates/core", version = "0.1.0" }
@@ -29,7 +36,6 @@ swotvibe-format = { path = "crates/format", version = "0.1.0" }
 swotvibe-layout = { path = "crates/layout", version = "0.1.0" }
 swotvibe-text = { path = "crates/text", version = "0.1.0" }
 swotvibe-render = { path = "crates/render", version = "0.1.0" }
-
 [profile.release]
 lto = "thin"
 codegen-units = 1

@@ -5,15 +5,31 @@ inherit another editor's codebase.
 
 ## Current status
 
-The Rust core kernel, versioned JSON schema, restricted ZIP64 bundle codec, and
-headless bundle CLI are implemented. Local Windows validation has passed for
-workspace tests, formatting, Clippy, dependency license/advisory checks, Python
-`zipfile`, Info-ZIP `unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations.
+The Rust core kernel, versioned JSON schema (v2), restricted ZIP64 bundle codec,
+and headless bundle CLI are implemented, and the **M0 vertical slice** now runs
+end to end: a document is opened, validated, laid out by one layout adapter,
+rasterized by one renderer, and compared against committed references.
 
-The full M0 vertical slice is **not complete**: layout, text, and render crates
-are contracts only, no backend is selected, and product reference files are not
-available. Cross-platform CI passed on commit `caff203`, including Linux
-external ZIP readers and the 500,000-mutation fuzz run
+| M0 gate item (§12.2) | State |
+|---|---|
+| 1. A document with a page, a frame, shapes, and text in known fonts | `tests/fixtures/m0-sample-v2.json` |
+| 2. Validation, save, and reopen through a versioned DTO | Covered; v1 → v2 migration included |
+| 3. One layout adapter and one renderer behind the documented contracts | Taffy and vello_cpu, both temporary ([ADR-0006](./docs/adr/0006-text-backend-parley.md)–[0008](./docs/adr/0008-render-backend-vello-cpu.md)) |
+| 4. PNG plus layout report against pinned references | `tests/golden/m0-sample.*`; Arabic editor UI and asset sample: `tests/golden/m0-editor-ui.*` |
+| 5. An edit with undo, redo, and a round trip | Covered |
+| 6. A batch that fails at its last command leaves no trace | Covered |
+
+The remaining gap is the **human review of the reference images**: their
+fingerprints still record `reviewed: null` or a pending review, and no
+`DEC-LAYOUT`, `DEC-TEXT-AR`, or `DEC-RENDERER` decision is closed. The three
+backends are provisional, chosen so the slice can pass through real adapters,
+not selected.
+
+Local Windows validation has passed for workspace tests, formatting, Clippy,
+dependency license/advisory checks, Python `zipfile`, Info-ZIP
+`unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations. Cross-platform CI
+passed on commit `caff203`, including Linux external ZIP readers and the
+500,000-mutation fuzz run
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
 ZIP64 public-format readiness remains open until real product files establish
 representative asset sizes and counts. No default bundle limits or stable file
@@ -24,14 +40,32 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 
 | Crate | Responsibility | State |
 |---|---|---|
-| `swotvibe-core` | Document model, identity, commands, atomic transactions, history, validation, snapshots | Implemented for the current M0 model |
-| `swotvibe-format` | Versioned DTOs, migrations, JSON, restricted ZIP64 bundles, asset bytes | Implemented; release evidence remains open |
+| `swotvibe-core` | Document model, properties, geometry, identity, commands, atomic transactions, history, validation, snapshots | Implemented for the current M0 model |
+| `swotvibe-format` | Versioned DTOs (v2), migrations, JSON, restricted ZIP64 bundles, asset bytes | Implemented; release evidence remains open |
 | `swotvibe-tools` | Headless bundle CLI and file replacement/recovery | Implemented; cross-platform CI passed; product corpus gate remains open |
-| `swotvibe-layout` | Product layout adapter | Contract only |
-| `swotvibe-text` | Text measurement and shaping adapter | Contract only |
-| `swotvibe-render` | Scene extraction and rendering adapter | Contract only |
+| `swotvibe-layout` | Product layout adapter | Implemented on Taffy, temporary |
+| `swotvibe-text` | Text measurement and shaping adapter | Implemented on Parley and Skrifa, temporary |
+| `swotvibe-render` | Scene extraction and rendering adapter | Implemented on vello_cpu, temporary |
 
-Adapters and tools depend on `core`; `core` does not depend on them.
+The static Arabic editor sample exercises a 1440×900 screen, mixed Arabic/Latin
+text, seven SVG icons, a generated PNG product image, and nested scene/layer
+groups. Its fixture, generator, test, and review state are documented in
+[`tests/fixtures/README.md`](./tests/fixtures/README.md) and
+[`tests/golden/README.md`](./tests/golden/README.md). Its PNG is a technical
+reference, not an approved product design.
+
+Adapters and tools depend on `core`; `core` does not depend on them. The text
+and layout crates are the only ones that know their backend's types, and those
+types never reach the document or the file schema.
+
+## Pinned fonts
+
+`assets/fonts` holds the OFL fonts the reference tests measure and draw with
+(Inter for Latin; Noto Sans Arabic for Arabic), each with its
+provenance, version, and SHA-256 in
+[`assets/fonts/README.md`](./assets/fonts/README.md). Reference tests register
+those files explicitly and never read a system font, so a golden cannot depend
+on the machine that produced it.
 
 ## Native bundle CLI
 
@@ -72,6 +106,8 @@ cargo deny check licenses advisories bans
 - [Technology research](./docs/architecture/technology-adoption-and-build-research.md)
 - [Architecture decisions](./docs/adr/README.md)
 - [Product requirements status](./docs/product/README.md)
+- [Pinned fonts and their provenance](./assets/fonts/README.md)
+- [Reference images and their comparison rules](./tests/golden/README.md)
 
 GitHub Actions checks Windows, Linux, and macOS on pushes and pull requests,
 with weekly and manual 500,000-mutation fuzz runs. See the linked run above for

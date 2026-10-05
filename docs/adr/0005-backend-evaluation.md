@@ -51,3 +51,18 @@ Adapter contracts should permit replacement. If a dependency-specific behavior h
 ## Follow-up
 
 Create separate decision records after each experiment with its observed results and selected dependency, if any.
+
+### Follow-up status
+
+Three experiments have run, and each is recorded as a **temporary** adoption
+rather than a selection. They exist so the M0 vertical slice can pass through
+real adapters, and each states its own known unsupported cases and the exit
+criteria that close its `DEC-*` identifier:
+
+- [ADR-0006](./0006-text-backend-parley.md) — text: Parley 0.11.1 (`DEC-TEXT-AR`).
+- [ADR-0007](./0007-layout-backend-taffy.md) — layout: Taffy 0.14.0 (`DEC-LAYOUT`).
+- [ADR-0008](./0008-render-backend-vello-cpu.md) — render: vello_cpu 0.3.0 (`DEC-RENDERER`).
+
+Yoga, Vello GPU, Skia, and the Boolean candidate remain unrun. No library is
+accepted by this record, and none of the three temporary records is sufficient
+to close its decision identifier.

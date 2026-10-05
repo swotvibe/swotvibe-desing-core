@@ -14,7 +14,7 @@ use zip::{CompressionMethod, DateTime, ZipArchive, ZipWriter};
 use crate::{DtoDocument, from_json_with_limits, json::ReadLimits, to_json};
 
 /// A document DTO and its optional embedded asset bytes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bundle {
     /// Persisted schema document.
     pub document: DtoDocument,

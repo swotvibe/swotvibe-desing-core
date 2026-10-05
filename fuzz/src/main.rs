@@ -1,11 +1,16 @@
 //! Deterministic bounded mutation harness for the strict bundle reader.
 //!
+//! Seeds are one valid bundle per schema version we still read, so a mutation
+//! reaches the property record parser (v2) as well as the bare structure
+//! parser (v1).
+//!
 //! Usage: `cargo run --manifest-path fuzz/Cargo.toml --release -- 10000`.
 
 use swotvibe_format::{BundleLimits, unpack_bundle};
 
 const SEEDS: &[&[u8]] = &[
     include_bytes!("../corpus/valid-empty-v1.swv"),
+    include_bytes!("../corpus/valid-styled-v2.swv"),
     include_bytes!("../../crates/format/tests/fixtures/upstream_zip_8_6_0/id-000000,time-0,execs-0,orig-0010aea18cf7489e5fdb14d0073a54df79149347.min"),
     include_bytes!("../../crates/format/tests/fixtures/upstream_zip_8_6_0/id-000001,time-0,execs-0,orig-00723069d9adfb794ee55f7de3dd32cc72fe9256.min"),
     include_bytes!("../../crates/format/tests/fixtures/upstream_zip_8_6_0/id-000002,time-0,execs-0,orig-0102a133e458503e63ead5bf560953b3961f5177.min"),

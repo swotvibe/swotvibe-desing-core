@@ -19,16 +19,24 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::node_props::DtoProps;
+
 /// The schema version this crate reads and writes.
 ///
 /// Independent of the application version and the crate version (§8.2).
-pub const SCHEMA_VERSION: u32 = 1;
+///
+/// - **v1** — identity, kind, name, and structure only.
+/// - **v2** — adds [`DtoNode::props`], the node's geometry, paint, and
+///   kind-specific properties. Absent means "the default for the node's kind",
+///   which is what lets a v1 file open unchanged and what will let a later
+///   additive field open in this build.
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// The persisted form of a whole document.
 ///
 /// Field names are part of the on-disk contract; renaming one is a breaking
 /// schema change, not a refactor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DtoDocument {
     /// The schema version that governs every field below.
     pub schema_version: u32,
@@ -71,7 +79,7 @@ pub struct DtoPage {
 }
 
 /// The persisted form of a node.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DtoNode {
     /// The node identity, as hyphenated UUID text.
     pub id: String,
@@ -83,6 +91,15 @@ pub struct DtoNode {
     /// Ordered child identities. Empty for leaf kinds.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub children: Vec<String>,
+    /// The node's visual properties.
+    ///
+    /// Absent means the defaults for [`DtoNode::kind`] (see
+    /// [`SCHEMA_VERSION`]): a v1 file, which carries no properties at all, is
+    /// therefore read as a document of default-styled nodes rather than being
+    /// refused. A present record is validated in full; only absence has a
+    /// default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub props: Option<DtoProps>,
     /// Unknown fields preserved verbatim from the file.
     #[serde(flatten)]
     pub extensions: Extensions,

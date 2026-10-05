@@ -23,10 +23,10 @@
 //! - consistency between the parent relation and the sibling order, with a
 //!   single source of truth (the canonical children/roots lists);
 //! - asset references that resolve;
+//! - node properties that obey [`crate::props::NodeProps::check`];
 //! - resource limits (tree depth, node count) on untrusted input.
 //!
-//! Numeric and geometric value validation is added with the geometry model;
-//! it is not a concern of this module yet.
+//! Numeric values are finite by construction (see [`crate::geometry`]).
 
 use std::collections::HashSet;
 use std::fmt;
@@ -97,6 +97,9 @@ pub enum ErrorCode {
     DuplicateRoot,
     /// A leaf kind owns children.
     InvalidChildKind,
+    /// A node's properties break a rule (wrong content for the kind, a negative
+    /// length, an unusable font setting).
+    InvalidProps,
     /// The derived parent/page index disagrees with the canonical lists.
     StaleIndex,
     /// A node in the scene is reachable from no page.
@@ -123,6 +126,7 @@ impl ErrorCode {
             Self::DuplicateChild => "duplicate-child",
             Self::DuplicateRoot => "duplicate-root",
             Self::InvalidChildKind => "invalid-child-kind",
+            Self::InvalidProps => "invalid-props",
             Self::StaleIndex => "stale-index",
             Self::OrphanNode => "orphan-node",
             Self::DepthLimit => "depth-limit",
@@ -301,6 +305,7 @@ pub fn validate(document: &Document, limits: ResourceLimits) -> Result<(), Valid
     check_references(document, &mut report);
     check_parent_and_order(document, &mut report);
     check_child_kinds(document, &mut report);
+    check_props(document, &mut report);
     check_depth(document, limits, &mut report);
     check_derived_index(document, &mut report);
 
@@ -558,6 +563,27 @@ fn check_child_kinds(document: &Document, report: &mut Report) {
                 ErrorCode::InvalidChildKind,
                 ElementRef::Node(node.id),
                 format!("a {} node cannot own children", node.kind.as_str()),
+            );
+        }
+    }
+}
+
+fn check_props(document: &Document, report: &mut Report) {
+    for node in document.nodes() {
+        if let Err(error) = node.props.check(node.kind) {
+            report.push(
+                ErrorCode::InvalidProps,
+                ElementRef::Node(node.id),
+                error.to_string(),
+            );
+        }
+        if let Some(asset) = node.props.asset()
+            && document.asset(asset).is_none()
+        {
+            report.push(
+                ErrorCode::MissingAsset,
+                ElementRef::Node(node.id),
+                format!("the image refers to missing asset {asset}"),
             );
         }
     }

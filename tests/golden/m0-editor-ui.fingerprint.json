@@ -1,0 +1,72 @@
+{
+  "assets": [
+    {
+      "bytes": 223,
+      "name": "select.svg",
+      "sha256": "5ddf1b8de9308ebfd04914f1a77e73b74b0716c6be8f056c4cc6e7795bff3e9c"
+    },
+    {
+      "bytes": 222,
+      "name": "frame.svg",
+      "sha256": "ac9abddb2fed3c7454a66d3c1398d9d82fa103c8a53d049ef9ffe68b2feefecb"
+    },
+    {
+      "bytes": 210,
+      "name": "rectangle.svg",
+      "sha256": "565576695be524abcb9eb778a4cbee9b0c7d9436028b9a6e4277c622c376c107"
+    },
+    {
+      "bytes": 221,
+      "name": "text.svg",
+      "sha256": "767c34075d366906b60f023ac662cd7bf07e56971d0bbdef041aa13d57b6634c"
+    },
+    {
+      "bytes": 237,
+      "name": "pen.svg",
+      "sha256": "78dde440ce07829f2ae5d0d1cb4c82dedd337bfc5dff2d1d77110dcd72205849"
+    },
+    {
+      "bytes": 232,
+      "name": "share.svg",
+      "sha256": "854289d418a3b42cfec5bad1a477decc0df369a842a156b149291ce250172352"
+    },
+    {
+      "bytes": 280,
+      "name": "preview.svg",
+      "sha256": "00b3158d99a08187ff9aaed6240dd71b78e48bd377642802ffb889f938ba8901"
+    },
+    {
+      "bytes": 1321,
+      "name": "product.png",
+      "sha256": "114b58649f7804ae91b5a41003d483422e320f3229e67c22e285c68983345323"
+    }
+  ],
+  "background": [
+    244,
+    246,
+    249,
+    255
+  ],
+  "fixture": "tests/fixtures/m0-editor-ui-v2.json",
+  "fonts": [
+    {
+      "bytes": 876576,
+      "family": "Inter",
+      "sha256": "29160a80ff49ddcab2c97711247e08b1fab27a484a329ce8b813d820dc559031"
+    },
+    {
+      "bytes": 844676,
+      "family": "Noto Sans Arabic",
+      "sha256": "63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e"
+    }
+  ],
+  "layoutEngine": "taffy 0.14.0",
+  "pixelTolerance": 2,
+  "pixels": [
+    1440,
+    900
+  ],
+  "renderEngine": "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD)",
+  "reviewed": null,
+  "scale": 1.0
+}

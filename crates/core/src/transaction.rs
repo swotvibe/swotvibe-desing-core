@@ -14,6 +14,7 @@
 use crate::commands::{Command, CommandError, CommandErrorCode, NodePlacement, Position};
 use crate::ids::{AssetId, NodeId, PageId};
 use crate::model::{Asset, Document, Node, NodeKind, Page, Revision};
+use crate::props::NodeProps;
 use std::collections::BTreeSet;
 
 /// A record of one command's observable effect, computed from the state that
@@ -76,6 +77,13 @@ pub enum Effect {
         node: NodeId,
         /// The previous name, or `None` when it was unnamed.
         old_name: Option<String>,
+    },
+    /// A node's properties were replaced.
+    NodePropsChanged {
+        /// The node whose properties changed.
+        node: NodeId,
+        /// The properties before the change.
+        old_props: Box<NodeProps>,
     },
     /// A node's sibling order changed without a reparent.
     NodeReordered {
@@ -379,6 +387,7 @@ fn apply_one(
         Command::DeleteNode { id } => apply_delete_node(doc, *id),
         Command::MoveNode { id, parent } => apply_move_node(doc, *id, parent),
         Command::RenameNode { id, name } => apply_rename_node(doc, *id, name.as_deref()),
+        Command::SetNodeProps { id, props } => apply_set_node_props(doc, *id, props),
         Command::ReorderNode { id, position } => apply_reorder_node(doc, *id, *position),
         Command::ReorderTo {
             parent,
@@ -768,6 +777,45 @@ fn apply_rename_node(
     node.set_name(name.unwrap_or_default());
 
     Ok(Effect::NodeRenamed { node: id, old_name })
+}
+
+fn apply_set_node_props(
+    doc: &mut Document,
+    id: NodeId,
+    props: &NodeProps,
+) -> Result<Effect, CommandError> {
+    let Some(kind) = doc.node(id).map(|node| node.kind) else {
+        return Err(CommandError::on_node(
+            CommandErrorCode::NodeNotFound,
+            id,
+            "the target node does not exist",
+        ));
+    };
+    props.check(kind).map_err(|error| {
+        CommandError::on_node(CommandErrorCode::InvalidProps, id, error.to_string())
+    })?;
+    if let Some(asset) = props.asset()
+        && doc.asset(asset).is_none()
+    {
+        return Err(CommandError::on_node(
+            CommandErrorCode::AssetNotFound,
+            id,
+            "the image refers to an asset that does not exist",
+        ));
+    }
+    let Some(node) = doc.node_mut(id) else {
+        return Err(CommandError::on_node(
+            CommandErrorCode::NodeNotFound,
+            id,
+            "the target node does not exist",
+        ));
+    };
+    let old_props = Box::new(std::mem::replace(&mut node.props, props.clone()));
+
+    Ok(Effect::NodePropsChanged {
+        node: id,
+        old_props,
+    })
 }
 
 /// Installs an exact sibling order, replacing whatever the container held.

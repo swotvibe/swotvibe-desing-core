@@ -285,6 +285,7 @@ fn a_duplicate_node_identity_is_reported() {
         kind: "shape".into(),
         name: None,
         children: Vec::new(),
+        props: None,
         extensions: Default::default(),
     });
     assert!(matches!(import(&dto), Err(ImportError::DuplicateId { .. })));
@@ -352,6 +353,7 @@ fn an_orphan_node_is_reported() {
         kind: "shape".into(),
         name: None,
         children: Vec::new(),
+        props: None,
         extensions: Default::default(),
     });
 

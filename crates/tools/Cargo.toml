@@ -20,3 +20,7 @@ windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32
 
 [dev-dependencies]
 sha2 = "0.10.9"
+swotvibe-layout.workspace = true
+swotvibe-text.workspace = true
+swotvibe-render.workspace = true
+serde_json.workspace = true

@@ -23,8 +23,8 @@ use std::fmt;
 
 use serde_json::Value;
 use swotvibe_core::{
-    AssetId, Command, Document, DocumentId, NodeId, NodeKind, NodePlacement, PageId, Position,
-    apply_batch_at_current,
+    AssetId, Command, Document, DocumentId, NodeId, NodeKind, NodePlacement, NodeProps, PageId,
+    Position, apply_batch_at_current,
 };
 
 use crate::dto::{DtoAsset, DtoDocument, DtoNode, DtoPage, SCHEMA_VERSION};
@@ -98,6 +98,13 @@ pub enum ImportError {
         /// A human-readable description of the first violation.
         message: String,
     },
+    /// A node's persisted properties could not become runtime properties.
+    InvalidProps {
+        /// The node whose record was rejected.
+        node: String,
+        /// A human-readable description of the violation.
+        message: String,
+    },
 }
 
 impl fmt::Display for ImportError {
@@ -127,6 +134,9 @@ impl fmt::Display for ImportError {
             Self::DuplicateId { id } => write!(f, "identity `{id}` appears more than once"),
             Self::Cycle { node } => write!(f, "`{node}` is its own ancestor or appears twice"),
             Self::InvalidDocument { message } => write!(f, "invalid document: {message}"),
+            Self::InvalidProps { node, message } => {
+                write!(f, "invalid properties on `{node}`: {message}")
+            }
         }
     }
 }
@@ -145,7 +155,9 @@ fn parse_id<T: std::str::FromStr<Err = swotvibe_core::IdError>>(
 /// The oldest schema version this build can read.
 ///
 /// Versions below this have no defined schema; `import` refuses them instead of
-/// interpreting them as the current version.
+/// interpreting them as the current version. v1 files are read through the
+/// migration in [`crate::migrate`], which fills in the properties v1 did not
+/// carry.
 pub const OLDEST_SUPPORTED_VERSION: u32 = 1;
 
 /// The default limits applied while importing an untrusted file.
@@ -244,6 +256,7 @@ fn push_subtree(
             kind: node.kind.as_str().to_owned(),
             name: node.name.clone(),
             children: children.iter().map(ToString::to_string).collect(),
+            props: Some(crate::node_props::props_to_dto(&node.props)),
             extensions: document.node_extensions(id).clone(),
         });
         // Push in reverse so children are visited in declared order.
@@ -384,6 +397,9 @@ struct PlannedNode {
     id: NodeId,
     kind: NodeKind,
     name: Option<String>,
+    /// The node's properties, or `None` when the record carried none and the
+    /// kind's defaults apply.
+    props: Option<NodeProps>,
     placement: NodePlacement,
 }
 
@@ -530,16 +546,28 @@ impl NodeIndex {
     }
 
     fn node_commands(&self) -> Result<Vec<Command>, ImportError> {
-        Ok(self
-            .order
-            .iter()
-            .map(|planned| Command::CreateNode {
+        let mut commands: Vec<Command> = Vec::with_capacity(self.order.len());
+        for planned in &self.order {
+            commands.push(Command::CreateNode {
                 id: planned.id,
                 kind: planned.kind,
                 name: planned.name.clone(),
                 parent: planned.placement,
-            })
-            .collect())
+            });
+            // Creation always installs the kind's defaults; a record that
+            // carries explicit properties follows with one replacement. The
+            // pair keeps every property write on the same validated path a live
+            // edit uses, so an invalid record is rejected by the same rule.
+            if let Some(props) = &planned.props
+                && *props != NodeProps::default_for(planned.kind)
+            {
+                commands.push(Command::SetNodeProps {
+                    id: planned.id,
+                    props: Box::new(props.clone()),
+                });
+            }
+        }
+        Ok(commands)
     }
 }
 
@@ -592,6 +620,15 @@ fn walk_subtree(
             id,
             kind,
             name: dto_node.name.clone(),
+            props: match &dto_node.props {
+                Some(dto) => Some(crate::node_props::props_from_dto(kind, dto).map_err(
+                    |error| ImportError::InvalidProps {
+                        node: dto_node.id.clone(),
+                        message: error.to_string(),
+                    },
+                )?),
+                None => None,
+            },
             placement,
         });
 

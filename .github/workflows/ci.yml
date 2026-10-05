@@ -27,6 +27,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Verify generated editor fixture is reproducible
+        run: |
+          python tests/fixtures/generate_m0_editor_ui.py
+          git diff --exit-code -- tests/fixtures/m0-editor-ui-v2.json assets/samples/m0-editor-ui
+
       - name: Install independent ZIP readers (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y unzip p7zip-full
@@ -47,6 +52,15 @@ jobs:
 
       - name: test
         run: cargo test --workspace
+
+      - name: M0 vertical slice (layout, render, committed golden)
+        # `cargo test --workspace` already runs this; naming it makes the gate's
+        # signal explicit on the OS matrix, because the reference image is
+        # compared per platform.
+        run: cargo test -p swotvibe-tools --test m0_vertical_slice
+
+      - name: Arabic editor UI slice (assets, mixed-script text, committed golden)
+        run: cargo test -p swotvibe-tools --test m0_editor_ui
 
       - name: Bounded parser fuzz smoke
         run: cargo run --manifest-path fuzz/Cargo.toml --release -- 10000

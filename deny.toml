@@ -17,7 +17,14 @@ yanked = "deny"
 version = 2
 # The project's own crates are MIT. Allowed third-party licenses are added here
 # as dependencies are adopted; nothing is allowlisted pre-emptively.
-allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
+#
+# `Zlib` was added with the M0 backend slice: `slotmap` (through Taffy) and
+# `foldhash` (through Parley's hashbrown use) are Zlib-licensed. Zlib is
+# OSI-approved and permissive, with no copyleft or attribution-in-binary
+# requirement beyond retaining the notice.
+# `BSD-2-Clause` (`arrayref`) and `BSD-3-Clause` (`tiny-skia`,
+# `tiny-skia-path`) enter transitively through resvg for SVG rasterization.
+allow = ["MIT", "Apache-2.0", "Unicode-3.0", "Zlib", "BSD-2-Clause", "BSD-3-Clause"]
 
 [bans]
 multiple-versions = "warn"

@@ -27,6 +27,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ids::{AssetId, DocumentId, NodeId, PageId};
+use crate::props::NodeProps;
 
 /// A revision counter for a document.
 ///
@@ -195,18 +196,21 @@ pub struct Node {
     pub kind: NodeKind,
     /// An optional human-readable name. Not an identity.
     pub name: Option<String>,
+    /// Geometry, paint, and kind-specific properties.
+    pub props: NodeProps,
     /// Ordered children. Empty for leaf kinds.
     children: Vec<NodeId>,
 }
 
 impl Node {
-    /// Creates a node with no children.
+    /// Creates a node with no children and the default properties of its kind.
     #[must_use]
     pub fn new(id: NodeId, kind: NodeKind, name: Option<String>) -> Self {
         Self {
             id,
             kind,
             name,
+            props: NodeProps::default_for(kind),
             children: Vec::new(),
         }
     }
@@ -245,7 +249,10 @@ impl Node {
     /// or reorder must not be reported as a content change.
     #[must_use]
     pub fn same_content(&self, other: &Self) -> bool {
-        self.id == other.id && self.kind == other.kind && self.name == other.name
+        self.id == other.id
+            && self.kind == other.kind
+            && self.name == other.name
+            && self.props == other.props
     }
 
     pub(crate) fn children_mut(&mut self) -> &mut Vec<NodeId> {

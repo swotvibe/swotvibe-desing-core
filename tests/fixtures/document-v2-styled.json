@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "id": "018f0000-0000-7000-8000-000000000011",
+  "pages": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000012",
+      "name": "Page 1",
+      "roots": ["018f0000-0000-7000-8000-000000010001"]
+    }
+  ],
+  "assets": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000013",
+      "name": "logo.png"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "018f0000-0000-7000-8000-000000010001",
+      "kind": "frame",
+      "name": "Card",
+      "children": [
+        "018f0000-0000-7000-8000-000000010002",
+        "018f0000-0000-7000-8000-000000010003",
+        "018f0000-0000-7000-8000-000000010004"
+      ],
+      "props": {
+        "transform": [1, 0, 0, 1, 0, 0],
+        "size": [400, 240],
+        "width": "fixed",
+        "height": "fixed",
+        "fill": [250, 250, 252, 255],
+        "frame": {
+          "layout": "flex",
+          "direction": "column",
+          "gap": 8,
+          "padding": { "top": 16, "right": 16, "bottom": 16, "left": 16 },
+          "main_align": "space-between",
+          "cross_align": "stretch"
+        }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000010002",
+      "kind": "shape",
+      "name": "Background",
+      "props": {
+        "transform": [2, 0, 0, 0.5, 24, 32],
+        "size": [320, 160],
+        "width": "fill",
+        "height": "fixed",
+        "fill": [20, 40, 60, 128],
+        "stroke": { "color": [0, 0, 0, 255], "width": 1.5 },
+        "shape": { "geometry": "ellipse", "corner_radius": 6 }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000010003",
+      "kind": "text",
+      "name": "Label",
+      "props": {
+        "transform": [1, 0, 0, 1, 16, 208],
+        "size": [180, 24],
+        "width": "hug",
+        "height": "hug",
+        "text": {
+          "content": "مرحبا بالعالم",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 18,
+          "font_weight": 700,
+          "direction": "rtl",
+          "align": "end"
+        }
+      }
+    },
+    {
+      "id": "018f0000-0000-7000-8000-000000010004",
+      "kind": "image",
+      "name": "Logo",
+      "props": {
+        "transform": [1, 0, 0, 1, 16, 16],
+        "size": [96, 32],
+        "width": "fixed",
+        "height": "fixed",
+        "image": { "asset": "018f0000-0000-7000-8000-000000000013" }
+      }
+    }
+  ]
+}

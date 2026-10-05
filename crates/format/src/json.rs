@@ -164,8 +164,11 @@ pub fn to_json(document: &DtoDocument) -> Result<Vec<u8>, JsonError> {
         check_extension_keys(
             "node",
             &node.extensions,
-            &["id", "kind", "name", "children"],
+            &["id", "kind", "name", "children", "props"],
         )?;
+        if let Some(props) = &node.props {
+            check_props_extension_keys(props)?;
+        }
     }
     for asset in &document.assets {
         check_extension_keys("asset", &asset.extensions, &["id", "name"])?;
@@ -186,6 +189,66 @@ fn check_extension_keys(
             record,
             key: key.clone(),
         });
+    }
+    Ok(())
+}
+
+/// Reserved names of the property record and each of its sub-records.
+///
+/// A nested record has its own `extensions` map, so it needs the same guard the
+/// top-level entities have: without it, a preserved key could shadow a modelled
+/// field on the next save and the modelled value would be lost.
+const PROPS_RESERVED: &[&str] = &[
+    "transform",
+    "size",
+    "width",
+    "height",
+    "fill",
+    "stroke",
+    "frame",
+    "shape",
+    "text",
+    "image",
+];
+
+fn check_props_extension_keys(props: &crate::node_props::DtoProps) -> Result<(), JsonError> {
+    check_extension_keys("props", &props.extensions, PROPS_RESERVED)?;
+    if let Some(stroke) = &props.stroke {
+        check_extension_keys("stroke", &stroke.extensions, &["color", "width"])?;
+    }
+    if let Some(frame) = &props.frame {
+        check_extension_keys(
+            "frame",
+            &frame.extensions,
+            &[
+                "layout",
+                "direction",
+                "gap",
+                "padding",
+                "main_align",
+                "cross_align",
+            ],
+        )?;
+    }
+    if let Some(shape) = &props.shape {
+        check_extension_keys("shape", &shape.extensions, &["geometry", "corner_radius"])?;
+    }
+    if let Some(text) = &props.text {
+        check_extension_keys(
+            "text",
+            &text.extensions,
+            &[
+                "content",
+                "font_family",
+                "font_size",
+                "font_weight",
+                "direction",
+                "align",
+            ],
+        )?;
+    }
+    if let Some(image) = &props.image {
+        check_extension_keys("image", &image.extensions, &["asset"])?;
     }
     Ok(())
 }

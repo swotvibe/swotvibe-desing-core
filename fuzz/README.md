@@ -1,9 +1,15 @@
 # Bundle parser fuzz smoke
 
-This separate harness builds mutated inputs from one valid project bundle and
-the pinned `zip-rs/zip2` 8.6.0 reader corpus, then calls the bounded public
-`unpack_bundle` API. It uses caller limits of 1 MiB archive, 256 KiB manifest,
-64 assets, 256 KiB per asset, and 512 KiB total payload.
+This separate harness builds mutated inputs from one valid project bundle per
+supported schema version and the pinned `zip-rs/zip2` 8.6.0 reader corpus, then
+calls the bounded public `unpack_bundle` API. It uses caller limits of 1 MiB
+archive, 256 KiB manifest, 64 assets, 256 KiB per asset, and 512 KiB total
+payload.
+
+The seeds are `fuzz/corpus/valid-empty-v1.swv` (schema v1, structure only) and
+`fuzz/corpus/valid-styled-v2.swv` (schema v2, structure plus node properties,
+derived from `tests/fixtures/document-v2-styled.json` by
+`swotvibe-tools bundle pack`).
 
 Run locally with:
 

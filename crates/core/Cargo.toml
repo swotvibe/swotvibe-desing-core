@@ -1,0 +1,15 @@
+[package]
+name = "swotvibe-core"
+description = "UI-independent core kernel: design document model, commands, transactions, and history."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+uuid = { workspace = true, features = ["v4", "std"] }

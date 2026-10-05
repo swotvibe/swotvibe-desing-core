@@ -1,0 +1,2 @@
+# Clippy configuration for the workspace.
+# Lints are applied from each crate's [lints] table (see the crate Cargo.toml files).

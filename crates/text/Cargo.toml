@@ -1,0 +1,10 @@
+[package]
+name = "swotvibe-text"
+description = "Text adapter contract: measurement, shaping, and glyph information."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+swotvibe-core.workspace = true

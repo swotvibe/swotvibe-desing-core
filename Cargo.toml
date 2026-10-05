@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/core",
+    "crates/format",
+    "crates/layout",
+    "crates/text",
+    "crates/render",
+    "crates/tools",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = ""
+rust-version = "1.99.0"
+
+[workspace.dependencies]
+# External crates (versions verified against crates.io; licenses allowlisted in deny.toml)
+serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
+serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
+thiserror = "2.0.21"
+uuid = { version = "1.27.0", default-features = false, features = ["v4", "std"] }
+
+# Internal crates
+swotvibe-core = { path = "crates/core", version = "0.1.0" }
+swotvibe-format = { path = "crates/format", version = "0.1.0" }
+swotvibe-layout = { path = "crates/layout", version = "0.1.0" }
+swotvibe-text = { path = "crates/text", version = "0.1.0" }
+swotvibe-render = { path = "crates/render", version = "0.1.0" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

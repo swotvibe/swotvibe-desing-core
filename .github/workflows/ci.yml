@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '23 4 * * 1'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt, clippy, test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python for independent ZIP validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install independent ZIP readers (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y unzip p7zip-full
+
+      - name: Require independent ZIP readers in bundle interoperability test
+        if: runner.os == 'Linux'
+        run: echo SWOTVIBE_REQUIRE_EXTERNAL_ZIP_TOOLS=1 >> "$GITHUB_ENV"
+
+      - name: Install Rust toolchain
+        # rust-toolchain.toml pins the version; rustup reads it from the repo root.
+        run: rustup show
+
+      - name: rustfmt
+        run: cargo fmt --all --check
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: test
+        run: cargo test --workspace
+
+      - name: Bounded parser fuzz smoke
+        run: cargo run --manifest-path fuzz/Cargo.toml --release -- 10000
+
+  licenses:
+    name: dependency licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Check licenses and advisories
+        run: cargo deny check licenses advisories bans
+
+  scheduled-bundle-fuzz:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Extended bounded parser fuzz session
+        run: cargo run --manifest-path fuzz/Cargo.toml --release -- 500000

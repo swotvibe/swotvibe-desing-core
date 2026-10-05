@@ -1,0 +1,22 @@
+[package]
+name = "swotvibe-tools"
+description = "Headless tooling: import/convert/evaluate flows over the core kernel."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+swotvibe-core.workspace = true
+swotvibe-format.workspace = true
+tempfile = "3.27.0"
+
+[[bin]]
+name = "swotvibe"
+path = "src/main.rs"
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }
+
+[dev-dependencies]
+sha2 = "0.10.9"

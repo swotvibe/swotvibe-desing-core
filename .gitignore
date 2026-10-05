@@ -1,0 +1,20 @@
+# Rust build output
+/target
+/fuzz/target
+**/*.rs.bk
+
+# Cargo local overrides
+.cargo/config.toml
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Test and tooling artifacts
+/tests/golden/**/out/
+/assets/samples/*.local.*
+/.tools/
+
+# Local scratch
+/scratch/

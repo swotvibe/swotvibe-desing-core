@@ -1,0 +1,10 @@
+[package]
+name = "swotvibe-layout"
+description = "Layout adapter contract: maps product layout semantics onto an external layout engine."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+swotvibe-core.workspace = true

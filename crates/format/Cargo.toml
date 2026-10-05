@@ -1,0 +1,16 @@
+[package]
+name = "swotvibe-format"
+description = "Versioned persisted schema DTOs and migrations for the design document."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+swotvibe-core.workspace = true
+zip = { version = "=8.6.0", default-features = false }
+
+[dev-dependencies]
+sha2 = "0.10.9"

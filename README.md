@@ -12,11 +12,13 @@ workspace tests, formatting, Clippy, dependency license/advisory checks, Python
 
 The full M0 vertical slice is **not complete**: layout, text, and render crates
 are contracts only, no backend is selected, and product reference files are not
-available. ZIP64 public-format readiness also remains open until cross-platform
-CI, Linux external-reader/fuzz results, and real product files establish the
-remaining evidence. The project has not published default bundle limits or a
-stable file extension. See [ADR-0003](./docs/adr/0003-file-container.md) and the
-[technical specification](./docs/architecture/core-kernel-technical-specification.md).
+available. Cross-platform CI passed on commit `caff203`, including Linux
+external ZIP readers and the 500,000-mutation fuzz run
+([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
+ZIP64 public-format readiness remains open until real product files establish
+representative asset sizes and counts. No default bundle limits or stable file
+extension have been published. See [ADR-0003](./docs/adr/0003-file-container.md)
+and the [technical specification](./docs/architecture/core-kernel-technical-specification.md).
 
 ## Workspace
 
@@ -24,7 +26,7 @@ stable file extension. See [ADR-0003](./docs/adr/0003-file-container.md) and the
 |---|---|---|
 | `swotvibe-core` | Document model, identity, commands, atomic transactions, history, validation, snapshots | Implemented for the current M0 model |
 | `swotvibe-format` | Versioned DTOs, migrations, JSON, restricted ZIP64 bundles, asset bytes | Implemented; release evidence remains open |
-| `swotvibe-tools` | Headless bundle CLI and file replacement/recovery | Implemented; cross-platform CI remains open |
+| `swotvibe-tools` | Headless bundle CLI and file replacement/recovery | Implemented; cross-platform CI passed; product corpus gate remains open |
 | `swotvibe-layout` | Product layout adapter | Contract only |
 | `swotvibe-text` | Text measurement and shaping adapter | Contract only |
 | `swotvibe-render` | Scene extraction and rendering adapter | Contract only |
@@ -71,8 +73,9 @@ cargo deny check licenses advisories bans
 - [Architecture decisions](./docs/adr/README.md)
 - [Product requirements status](./docs/product/README.md)
 
-The GitHub Actions workflow adds Linux external ZIP readers and scheduled fuzz
-coverage. Its configured jobs are not evidence of passing remote CI runs.
+GitHub Actions checks Windows, Linux, and macOS on pushes and pull requests,
+with weekly and manual 500,000-mutation fuzz runs. See the linked run above for
+the latest passing evidence.
 
 ## License
 

@@ -82,7 +82,7 @@ name and metadata API](https://docs.rs/zip/latest/zip/read/struct.ZipFile.html) 
 
 ## Acceptance gates (implementation, not design choice)
 
-Implementation status, 2026-10-05:
+Implementation and evidence status, 2026-10-05:
 
 - **Implemented:** bounded in-memory read/write, strict project-profile layout
   validation, deterministic output, round-trip and malformed-input tests,
@@ -93,20 +93,24 @@ Implementation status, 2026-10-05:
   --all-targets -- -D warnings`, formatting checks, dependency license/advisory
   checks, Python `zipfile`, Info-ZIP `unzip`/`zipinfo`, 7-Zip interoperability,
   and 500,000 bounded parser fuzz mutations passed on Windows on 2026-10-05.
-- **Configured but not yet evidenced remotely:** CI defines Windows, Linux, and
-  macOS jobs, Python ZIP validation, Linux `unzip`/`zipinfo`/`7z` checks, and a
-  bounded fuzz smoke run plus a scheduled 500,000-mutation session. A workflow
-  definition is not a passing CI result; the scheduled fuzz run has not been
-  observed on its Linux runner.
-- **Still open:** a completed cross-platform CI run, the scheduled longer fuzz
-  result and external-reader run from Linux CI, and a corpus based on real
-  intended-user files and asset-count/size distributions. No such product
-  corpus is currently documented, so synthetic profiles must not be described
-  as representative customer workloads.
+- **Verified remotely:** GitHub Actions run
+  [37270260436](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)
+  passed on commit `caff203206f2c3cd6043e937165bfdbad7817473`. Windows, Linux,
+  and macOS passed formatting, Clippy, workspace tests, and the 10,000-mutation
+  smoke run; Linux additionally passed Python `zipfile`, Info-ZIP, and 7-Zip
+  interoperability checks. The same run passed the 500,000-mutation extended
+  Linux fuzz session and dependency license/advisory checks.
+- **Still open:** a corpus based on real intended-user files and their
+  asset-count/size distributions. Current volume profiles are synthetic and
+  must not be described as representative customer workloads. Consequently,
+  do not publish default resource limits or claim general public-format
+  readiness yet.
 
-Keep `CORE-FORMAT-01` open for public-format release readiness until the open
-evidence is collected. Do not publish default resource limits, claim general
-format stability, or promise crash safety without the corresponding evidence.
+Keep `CORE-FORMAT-01` open for public-format release readiness until product
+files and their measured workload distribution are available. Do not publish
+default resource limits or claim general format stability without that
+evidence; the existing replacement path also does not promise survival after
+power loss.
 
 ## Change impact
 
@@ -128,7 +132,8 @@ bytes each, and four assets of 192 KiB each, plus a CLI recovery test with a
 256 KiB asset. These exercise finite configured limits and recovery logic, but
 they do not establish intended user workloads or validate multi-gigabyte
 payloads. The small synthetic ZIP64 fixtures validate ZIP64 record parsing
-without such allocations. Keep
-`CORE-FORMAT-01` open for public-format release readiness until the remaining
-cross-platform, Linux fuzz/external-reader, and product-corpus evidence is
-recorded.
+without such allocations. Cross-platform CI and the extended Linux fuzz and
+external-reader checks passed in run
+[37270260436](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436).
+Keep `CORE-FORMAT-01` open for public-format release readiness until a corpus
+of real intended-user documents supports workload and resource-limit decisions.

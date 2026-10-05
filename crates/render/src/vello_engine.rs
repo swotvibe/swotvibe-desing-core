@@ -381,18 +381,24 @@ impl VelloCpuRenderer {
 }
 
 /// Appends a glyph outline to `path`, moved to the pen position.
+///
+/// Skrifa emits font outlines in the font coordinate system, where positive Y
+/// points up from the baseline. Parley positions glyph origins in the layout
+/// coordinate system, where positive Y points down. Convert only the outline's
+/// local Y coordinates here; applying a reflection to the whole scene would
+/// also invert the glyph's pen positions and every non-text node.
 fn append_glyph(path: &mut BezPath, outline: &GlyphOutline, x: f64, y: f64) {
     use vello_cpu::kurbo::Point;
     for command in &outline.commands {
         match *command {
-            PathCommand::MoveTo { x: px, y: py } => path.move_to(Point::new(x + px, y + py)),
-            PathCommand::LineTo { x: px, y: py } => path.line_to(Point::new(x + px, y + py)),
+            PathCommand::MoveTo { x: px, y: py } => path.move_to(Point::new(x + px, y - py)),
+            PathCommand::LineTo { x: px, y: py } => path.line_to(Point::new(x + px, y - py)),
             PathCommand::QuadTo {
                 cx,
                 cy,
                 x: px,
                 y: py,
-            } => path.quad_to(Point::new(x + cx, y + cy), Point::new(x + px, y + py)),
+            } => path.quad_to(Point::new(x + cx, y - cy), Point::new(x + px, y - py)),
             PathCommand::CubicTo {
                 c1x,
                 c1y,
@@ -401,9 +407,9 @@ fn append_glyph(path: &mut BezPath, outline: &GlyphOutline, x: f64, y: f64) {
                 x: px,
                 y: py,
             } => path.curve_to(
-                Point::new(x + c1x, y + c1y),
-                Point::new(x + c2x, y + c2y),
-                Point::new(x + px, y + py),
+                Point::new(x + c1x, y - c1y),
+                Point::new(x + c2x, y - c2y),
+                Point::new(x + px, y - py),
             ),
             PathCommand::Close => path.close_path(),
             // `PathCommand` is non-exhaustive: a future command that this build
@@ -503,4 +509,54 @@ pub fn compare_images(
     tolerance: u8,
 ) -> PixelDifference {
     actual.compare(reference, tolerance)
+}
+
+#[cfg(test)]
+mod text_coordinate_tests {
+    use super::*;
+    use vello_cpu::kurbo::{PathEl, Point};
+
+    #[test]
+    fn glyph_outlines_flip_local_y_into_the_layout_coordinate_system() {
+        let outline = GlyphOutline {
+            commands: vec![
+                PathCommand::MoveTo { x: 3.0, y: 5.0 },
+                PathCommand::LineTo { x: 7.0, y: 11.0 },
+                PathCommand::QuadTo {
+                    cx: 13.0,
+                    cy: 17.0,
+                    x: 19.0,
+                    y: 23.0,
+                },
+                PathCommand::CubicTo {
+                    c1x: 29.0,
+                    c1y: 31.0,
+                    c2x: 37.0,
+                    c2y: 41.0,
+                    x: 43.0,
+                    y: 47.0,
+                },
+                PathCommand::Close,
+            ],
+            contours: 1,
+        };
+        let mut path = BezPath::new();
+
+        append_glyph(&mut path, &outline, 100.0, 200.0);
+
+        assert_eq!(
+            path.elements(),
+            &[
+                PathEl::MoveTo(Point::new(103.0, 195.0)),
+                PathEl::LineTo(Point::new(107.0, 189.0)),
+                PathEl::QuadTo(Point::new(113.0, 183.0), Point::new(119.0, 177.0)),
+                PathEl::CurveTo(
+                    Point::new(129.0, 169.0),
+                    Point::new(137.0, 159.0),
+                    Point::new(143.0, 153.0)
+                ),
+                PathEl::ClosePath,
+            ]
+        );
+    }
 }

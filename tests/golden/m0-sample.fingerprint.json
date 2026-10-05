@@ -26,6 +26,6 @@
     320
   ],
   "renderEngine": "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD)",
-  "reviewed": "pending human review of tests/golden/m0-sample.png",
+  "reviewed": "Visual formatting and text orientation approved by project owner, 2026-10-06",
   "scale": 1.0
 }

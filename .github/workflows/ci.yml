@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
   schedule:
     - cron: '23 4 * * 1'
 
@@ -63,7 +64,7 @@ jobs:
         run: cargo deny check licenses advisories bans
 
   scheduled-bundle-fuzz:
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

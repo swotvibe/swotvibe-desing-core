@@ -1,0 +1,49 @@
+[package]
+name = "swotvibe-desktop"
+description = "Desktop host: a window and an IPC adapter over the application service."
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.95"
+
+# Its own workspace, deliberately.
+#
+# A Tauri host needs platform libraries a headless CI runner does not have
+# (WebKitGTK on Linux, for one). Keeping it out of the repository workspace means
+# `cargo test --workspace`, `cargo clippy --workspace` and `cargo fmt --all` stay
+# green on every platform, and the host is built where its platform requirements
+# are actually met. Publishing a platform matrix for the host is its own decision,
+# not a side effect of adding a crate.
+[workspace]
+
+[lib]
+name = "swotvibe_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# Named differently from the library on purpose: `swotvibe-desktop` and
+# `swotvibe_desktop` normalise to the same file name on Windows, and Cargo
+# refuses to build a bin and a lib that collide.
+[[bin]]
+name = "swotvibe-design"
+path = "src/main.rs"
+
+[features]
+# Without this feature the host is compiled with Tauri's `dev` cfg and loads
+# `build.devUrl` — the development server — even in a release build. Enabling it
+# is what makes a binary serve the interface embedded from `ui/dist`, which is
+# what a standalone build has to do.
+#
+# It is not a default feature on purpose: `tauri dev` relies on the dev cfg to
+# point at the Vite server, and defaulting this on would silently take that away.
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+swotvibe-app = { path = "../../../crates/app" }
+swotvibe-core = { path = "../../../crates/core" }
+swotvibe-text = { path = "../../../crates/text" }
+serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"

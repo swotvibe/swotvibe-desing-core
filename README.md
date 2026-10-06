@@ -28,9 +28,10 @@ pass through real adapters rather than selected.
 
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
-`unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations. Cross-platform CI
-passed on commit `c224926` with both M0 slices, including the Arabic editor
-sample, on the Windows, Linux, and macOS matrix
+`unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations.
+
+Cross-platform CI passed on commit `c224926` with both M0 slices, including the
+Arabic editor sample, on the Windows, Linux, and macOS matrix
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37393874233)).
 Linux external ZIP readers and the 500,000-mutation fuzz run passed on `caff203`
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
@@ -38,6 +39,13 @@ ZIP64 public-format readiness remains open until real product files establish
 representative asset sizes and counts. No default bundle limits or stable file
 extension have been published. See [ADR-0003](./docs/adr/0003-file-container.md)
 and the [technical specification](./docs/architecture/core-kernel-technical-specification.md).
+
+The M1 work keeps that matrix green and adds an interface job — Node, type-check,
+component tests, and a production build
+([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37434712462)).
+The desktop host is deliberately not in CI: its platform libraries are not on a
+headless runner, and a host that has not been built on a platform must not be
+reported as passing there.
 
 ## Workspace
 
@@ -49,6 +57,13 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 | `swotvibe-layout` | Product layout adapter | Implemented on Taffy, temporary |
 | `swotvibe-text` | Text measurement and shaping adapter | Implemented on Parley and Skrifa, temporary |
 | `swotvibe-render` | Scene extraction and rendering adapter | Implemented on vello_cpu, temporary |
+| `swotvibe-app` | Editor session: opens bytes, applies commands, undo/redo, views, layout and preview requests, typed errors | Implemented and tested; no window, no file system, no Tauri |
+
+Every pinned dependency — version, license, MSRV, enabled features, and the
+official source it was verified against — is recorded in the
+[tooling inventory](./docs/architecture/tooling-inventory.md). The lockfiles are
+the source of truth; that document explains what each tool owns and why it was
+chosen.
 
 The static Arabic editor sample exercises a 1440×900 screen, mixed Arabic/Latin
 text, seven SVG icons, a generated PNG product image, and nested scene/layer
@@ -56,6 +71,33 @@ groups. Its fixture, generator, test, and review state are documented in
 [`tests/fixtures/README.md`](./tests/fixtures/README.md) and
 [`tests/golden/README.md`](./tests/golden/README.md). Its PNG is a technical
 reference, not an approved product design.
+
+## Desktop shell and editor interface
+
+`apps/desktop` holds the M1 editing loop:
+
+| Path | What it is | State |
+|---|---|---|
+| `src-tauri` | Tauri 2 host: window, native file dialogs, and thin IPC commands over `swotvibe-app` | Builds and runs on Windows; acceptance gate partial |
+| `ui` | Vue 3 + Vite interface, TypeScript `6.0.3` pinned | Builds; 17 component tests pass |
+
+The host is its own Cargo workspace on purpose: its platform libraries are not
+available on a headless CI runner, and including it in the repository workspace
+would make `cargo test --workspace` machine-specific.
+
+The interface never receives a file path, and no component talks to a service
+directly — a shell injects one. In a plain browser the same interface runs against
+a sample service so it can be reviewed without a host; the shell recognises the
+host by the globals Tauri injects.
+
+TypeScript is pinned at `6.0.3` because TypeScript 7 ships no programmatic API
+and the published Vue tooling still needs the 6.x line for `.vue` type-checking.
+A 7.x upgrade is a gated follow-up, not a promised version.
+
+The plan, the acceptance gates, and what is still unproven are in
+[`docs/architecture/ui-and-m1-plan.md`](./docs/architecture/ui-and-m1-plan.md) and
+[ADR-0009](./docs/adr/0009-ui-and-bridge-boundary.md). This does not commit the
+product to a desktop launch.
 
 Adapters and tools depend on `core`; `core` does not depend on them. The text
 and layout crates are the only ones that know their backend's types, and those
@@ -110,6 +152,7 @@ cargo deny check licenses advisories bans
 - [Architecture decisions](./docs/adr/README.md)
 - [Product requirements status](./docs/product/README.md)
 - [Pinned fonts and their provenance](./assets/fonts/README.md)
+- [Tooling inventory: pinned versions, licenses, MSRV](./docs/architecture/tooling-inventory.md)
 - [Reference images and their comparison rules](./tests/golden/README.md)
 
 GitHub Actions checks Windows, Linux, and macOS on pushes and pull requests,

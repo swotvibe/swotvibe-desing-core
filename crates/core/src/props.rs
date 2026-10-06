@@ -375,6 +375,20 @@ impl NodeProps {
         }
     }
 
+    /// The properties a new node of `kind` starts with, with a chosen font.
+    ///
+    /// A text node whose family is not registered cannot be measured, and layout
+    /// fails rather than substituting a face. The caller knows which families are
+    /// registered, so it states one instead of this layer guessing a name.
+    #[must_use]
+    pub fn default_for_with_font(kind: NodeKind, font_family: Option<&str>) -> Self {
+        let mut props = Self::default_for(kind);
+        if let (Some(family), Content::Text(text)) = (font_family, &mut props.content) {
+            family.clone_into(&mut text.font_family);
+        }
+        props
+    }
+
     /// Checks the rules the types themselves cannot express.
     ///
     /// # Errors

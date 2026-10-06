@@ -22,3 +22,4 @@ record.
 | [0006](./0006-text-backend-parley.md) | Text backend for the M0 slice: Parley | Temporary; `DEC-TEXT-AR` open |
 | [0007](./0007-layout-backend-taffy.md) | Layout backend for the M0 slice: Taffy | Temporary; `DEC-LAYOUT` open |
 | [0008](./0008-render-backend-vello-cpu.md) | Render backend for the M0 slice: vello_cpu | Temporary; `DEC-RENDERER` open |
+| [0009](./0009-ui-and-bridge-boundary.md) | Application service, desktop host, and interface foundation | Accepted for the implemented parts; desktop acceptance gate partial |

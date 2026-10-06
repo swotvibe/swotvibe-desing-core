@@ -127,11 +127,11 @@
 
 ## 10. التطبيق والواجهة والجسر إلى النواة
 
-**الدليل الرسمي:** Tauri v2 يتيح واجهة WebView تتصل بخلفية Rust برسائل، ولا يضمّن WebView؛ النسخة والسلوك يعتمدان على WebView النظام. Vue يوفر دعماً رسمياً لـTypeScript ويصلح طبقة واجهة؛ لا يفرض أي منهما شكل النواة أو بروتوكولها. [معمارية Tauri](https://v2.tauri.app/concept/architecture/)، [نسخ WebView](https://v2.tauri.app/reference/webview-versions/)، [Vue وTypeScript](https://vuejs.org/guide/typescript/overview)
+**الدليل الرسمي:** Tauri v2 يتيح واجهة WebView تتصل بخلفية Rust برسائل، ولا يضمّن WebView؛ النسخة والسلوك يعتمدان على WebView النظام. أوامر `invoke` هي request/response وتمرر القيم الاعتيادية بصيغة JSON؛ واجهة `Response` ملائمة لنقل البايتات الكبيرة. أوامر Tauri يمكن أن تعيد أخطاء serializable. capabilities تربط permissions بالنوافذ، وCSP تحتاج إعداداً صريحاً. توثيق الاختبار يفرق بين mock runtime وWebDriver الذي يشغل WebView فعلياً. Vue توفر typecheck لملفات SFC عبر `vue-tsc`. إعلان TypeScript 7.0 يقول إن تكامل الأدوات المضمنة مثل Vue يحتاج API لم تكن متاحة في 7.0، مع توقع واجهة جديدة في 7.1. [Tauri IPC](https://v2.tauri.app/concept/inter-process-communication/)، [Tauri commands](https://v2.tauri.app/develop/calling-rust/)، [capabilities](https://v2.tauri.app/security/capabilities/)، [CSP](https://v2.tauri.app/security/csp/)، [Tauri tests](https://v2.tauri.app/develop/tests/)، [نسخ WebView](https://v2.tauri.app/reference/webview-versions/)، [Vue وTypeScript](https://vuejs.org/guide/typescript/overview.html)، [إعلان TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
 
-**القرار:** **نواة Rust مستقلة عن UI.** Tauri + Vue خيار معقول لتطبيق Desktop إذا أظهر اختبار النشر والتحديث والتوافق أنه أقل كلفة للوصول إلى عملائنا. نبني عقد الجسر ورسائل الأوامر والنتائج ونقل الموارد. يستلزم هدف Web مسار WASM واضحاً؛ لا تفترض أن جسر Tauri يخدم الويب.
+**القرار والنتيجة:** **النواة مستقلة عن UI، وطبقة التطبيق `swotvibe-app` مستقلة عن Tauri.** نُفِّذ المضيف على Tauri 2 مع Vue 3 وVite وTypeScript `6.0.3` مقفل، وتُبنى الحزم وتُختبر. ترقية 7.x تبقى مشروطة بنشرها واجتياز فحص Vue SFC والـplugins؛ سجل npm عند المراجعة أظهر `7.0.2` مستقراً و`7.1` تطويرياً بلا إصدار أحدث منشور. لا يعني ذلك اعتماد Desktop منصة إطلاق. التفاصيل وبوابات القبول في [خطة UI وM1](./ui-and-m1-plan.md) و[ADR-0009](../adr/0009-ui-and-bridge-boundary.md).
 
-**اختبار الجدوى:** وقت التثبيت والتشغيل، دعم أنظمة العملاء، حجم الحزمة، التحديثات، الأعطال المرتبطة باختلاف WebView، وتكلفة تقديم نسخة Web بجانب Desktop. قرار Desktop مقابل Web يتبع اكتشاف العميل المستهدف.
+**اختبار الجدوى:** حلقة فتح/تحديد/تعديل/تراجع-إعادة/حفظ من التطبيق، وقياس زمن البناء والتشغيل وحجم الحزمة والفتح والتخطيط والرسم والتعديل على العينة، واختبار WebDriver على كل منصة مطلوبة. لا تفسّر baseline العينة على أنه SLA أو جدوى تجارية قبل corpus عميل.
 
 ## 11. طبقة الوكيل والبروتوكولات والمزودون
 
@@ -156,7 +156,7 @@
 | Images/Color | image-rs + CMS خلف واجهة | مقارنة moxcms/lcms2 للملفات اللونية المستهدفة |
 | SVG/PDF | resvg/usvg للعرض؛ محول خاص للتحرير | نتائج import/export corpus وPDF |
 | Figma | REST API أولاً؛ `.fig` اختياري | طلب سوقي مثبت ومراجعة شروط/قانون |
-| App/UI | Rust core منفصل؛ Tauri/Vue مرشحان | اختبار قناة Desktop/Web المطلوبة تجارياً |
+| App/UI | Rust core منفصل؛ طبقة تطبيق `swotvibe-app` مستقلة عن Tauri؛ مضيف Tauri 2 + Vue 3 منفذ؛ TS 6.0.3 مقفل | اختبار قناة Desktop/Web المطلوبة تجارياً؛ عقد طبقة التطبيق في ADR-0009 |
 | Agent | أدوات دلالية وvalidation من بناءنا؛ MCP عند الحاجة | evals وقيمة مدفوعة ووحدة اقتصاد واضحة |
 
 ## حدّ الاستنتاج

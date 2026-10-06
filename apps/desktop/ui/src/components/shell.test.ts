@@ -424,6 +424,23 @@ describe('creating and deleting', () => {
     expect(selected[0]?.text()).toContain(created!.name || created!.id.slice(-6))
   })
 
+  it('creates a node that is visible rather than zero-sized', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await shell.find('button[aria-label="Shape"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const view = await bridge.getView()
+    const created = view.nodes.at(-1)
+    // The document model's default is deliberately empty, so a zero-sized,
+    // unfilled node would be invisible and the create would look like nothing
+    // happened. The tool supplies defaults, and the stand-in mirrors them.
+    expect(created?.props.size[0]).toBeGreaterThan(0)
+    expect(created?.props.size[1]).toBeGreaterThan(0)
+    expect(created?.props.fill).not.toBeNull()
+  })
+
   it('creates a text node with a registered family, so it can be measured', async () => {
     const { shell, bridge } = await mountShell()
 

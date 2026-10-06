@@ -82,6 +82,13 @@ pub struct PropsView {
     pub width_sizing: String,
     /// How the height is decided: `fixed`, `fill`, or `hug`.
     pub height_sizing: String,
+    /// Whether the parent's layout decides this node's position.
+    ///
+    /// Inside a flex container the position comes from layout and the stored
+    /// translation has no effect, so an interface disables the position field
+    /// with a reason instead of accepting a value that never appears. `apply`
+    /// refuses such an edit for the same reason.
+    pub position_is_layout_decided: bool,
     /// The fill colour, when the node has one.
     pub fill: Option<Rgba>,
     /// The stroke, when the node has one.
@@ -212,6 +219,37 @@ pub enum EditCommand {
         node: String,
         /// The new fill, or `None` to remove it.
         fill: Option<Rgba>,
+    },
+    /// Moves a node to a position on its page.
+    ///
+    /// This is the transform's translation, and it is the node's position only
+    /// when its parent has no layout rule. Inside a flex container the position
+    /// comes from layout and a stored translation has no visible effect — which
+    /// the interface is expected to know rather than to discover.
+    SetNodePosition {
+        /// The node to move.
+        node: String,
+        /// The new position `[x, y]` in design units.
+        position: [f64; 2],
+    },
+    /// Sets a node's stored size.
+    ///
+    /// A node whose sizing along an axis is `hug` takes that axis's length from
+    /// its content, so a stored size would be written and then ignored. Setting a
+    /// size therefore also switches both axes to `fixed`: an instruction that is
+    /// silently discarded is worse than one that visibly changes the mode.
+    SetNodeSize {
+        /// The node to resize.
+        node: String,
+        /// The new size `[width, height]` in design units.
+        size: [f64; 2],
+    },
+    /// Sets a shape's corner radius.
+    SetNodeCornerRadius {
+        /// The node to change.
+        node: String,
+        /// The new radius in design units. Zero is a square corner.
+        radius: f64,
     },
 }
 

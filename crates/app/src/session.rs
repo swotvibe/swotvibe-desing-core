@@ -32,7 +32,8 @@ use std::sync::Arc;
 
 use swotvibe_core::{
     BatchError, Color, Command, Document, DocumentEngine, Node, NodeId, NodeKind, NodePlacement,
-    NodeProps, PageId, Position, Revision, Snapshot, validate_untrusted,
+    NodeProps, PageId, Position, Revision, Scalar, Size, Sizing, Snapshot, Transform,
+    validate_untrusted,
 };
 use swotvibe_format::{export, from_json, import, to_json};
 use swotvibe_layout::{LayoutEngine, LayoutOptions, LayoutResult, TaffyLayoutEngine};
@@ -205,7 +206,7 @@ impl EditorSession {
             page: page.to_string(),
             parent: document.parent_of(id).map(|parent| parent.to_string()),
             children: node.children().iter().map(ToString::to_string).collect(),
-            props: props_view(node),
+            props: self.props_view(node),
         });
         for &child in node.children() {
             self.collect_nodes(document, child, out);
@@ -469,12 +470,18 @@ impl EditorSession {
     ///
     /// [`AppErrorCode::InvalidRequest`] when the identity does not parse, and
     /// [`AppErrorCode::UnknownNode`] when no such node exists.
+    /// The node's stored properties, for a caller that holds the document.
+    ///
+    /// # Errors
+    ///
+    /// [`AppErrorCode::InvalidRequest`] when the identity does not parse, and
+    /// [`AppErrorCode::UnknownNode`] when no such node exists.
     pub fn node_props(&self, node: &str) -> Result<PropsView, AppError> {
         let id = parse_node(node)?;
-        self.engine
-            .document()
+        let document = self.engine.document();
+        document
             .node(id)
-            .map(props_view)
+            .map(|node| self.props_view(node))
             .ok_or_else(|| {
                 AppError::on_node(
                     AppErrorCode::UnknownNode,
@@ -482,6 +489,27 @@ impl EditorSession {
                     "the node is not in the document",
                 )
             })
+    }
+
+    /// Whether a node's position comes from its parent's layout rather than from
+    /// its own transform.
+    ///
+    /// Inside a flex container the layout decides where a child sits, so a stored
+    /// translation is written and then ignored. An interface needs to know this
+    /// to disable a position field with a stated reason, and `apply` refuses such
+    /// an edit rather than letting the value disappear into the document.
+    #[must_use]
+    pub fn position_is_layout_decided(&self, id: NodeId) -> bool {
+        let document = self.engine.document();
+        let Some(parent) = document.parent_of(id) else {
+            // A page root: a page has no layout rule, so the transform places it.
+            return false;
+        };
+        matches!(
+            document.node(parent).map(|node| &node.props.content),
+            Some(swotvibe_core::Content::Frame(frame))
+                if matches!(frame.layout, swotvibe_core::FrameLayout::Flex(_))
+        )
     }
 
     /// The identity of the first page, or `None` for a document with no pages.
@@ -596,22 +624,26 @@ impl EditorSession {
 
     /// Translates interface commands into kernel commands.
     ///
-    /// A property edit reads the node's current properties first, because the
-    /// kernel replaces a node's properties as a whole. Doing that here keeps the
-    /// read-modify-write in one place instead of asking every host to repeat it.
+    /// Kernel existence is **not** checked for the structural commands — create,
+    /// delete, move, rename — because the kernel validates each against the state
+    /// as the batch applies, so a command may name a node an earlier command in
+    /// the same batch created. Pre-checking against the pre-state would reject
+    /// that legal batch and would duplicate the kernel's rules.
     ///
-    /// Existence is **not** checked here. The kernel validates each command
-    /// against the state as the batch applies, so a command may name a node an
-    /// earlier command in the same batch created — a create followed by an edit
-    /// of the created node is one atomic batch. Pre-checking here would reject
-    /// that legal batch, and would duplicate the kernel's rules in a second
-    /// place that could drift.
+    /// ## Why property edits are merged
     ///
-    /// Created nodes land at the end of their container: the interface says "in
-    /// this page" or "under this node", and the kernel decides the index.
+    /// The kernel replaces a node's properties as a whole, so changing one field
+    /// means reading the current value first — and that read sees the state
+    /// *before* the batch. Two property edits on the same node in one batch would
+    /// therefore both start from the same old value and the second would silently
+    /// discard the first. Merging them into one replacement is what makes a batch
+    /// mean what it says.
     fn to_kernel_commands(&self, commands: &[EditCommand]) -> Result<Vec<Command>, AppError> {
-        let document = self.engine.document();
         let mut out = Vec::with_capacity(commands.len());
+        // Property edits by target node, in first-appearance order, so a merged
+        // replacement lands where its first command did.
+        let mut pending: Vec<(NodeId, usize)> = Vec::new();
+
         for command in commands {
             match command {
                 EditCommand::CreateNode {
@@ -630,15 +662,11 @@ impl EditorSession {
                         name: name.clone(),
                         parent,
                     });
-                    // A created node starts with the kind's default properties.
-                    // A text node has to name a registered family, or every later
-                    // layout pass fails; this layer knows the families, so it
-                    // supplies one rather than letting the default stand.
-                    // A requested fill rides in its own command inside the same
-                    // batch, so the create carries no hidden property logic.
-                    let mut props =
-                        NodeProps::default_for_with_font(kind, self.default_family().as_deref());
-                    let mut changed = false;
+                    // A created node starts with the tool's defaults for its kind,
+                    // with any requested fill applied on top. One command, so the
+                    // batch stays small and the intent is one statement: this is
+                    // what a new node is.
+                    let mut props = self.creation_props(kind);
                     if let Some(fill) = fill {
                         props.fill = Some(Color {
                             r: fill.r,
@@ -646,17 +674,8 @@ impl EditorSession {
                             b: fill.b,
                             a: fill.a,
                         });
-                        changed = true;
                     }
-                    if kind == NodeKind::Text {
-                        changed = true;
-                    }
-                    if changed {
-                        out.push(Command::SetNodeProps {
-                            id,
-                            props: Box::new(props),
-                        });
-                    }
+                    self.stage_props(&mut out, &mut pending, id, props)?;
                 }
                 EditCommand::DeleteNode { node } => {
                     out.push(Command::DeleteNode {
@@ -676,31 +695,161 @@ impl EditorSession {
                 }
                 EditCommand::SetNodeFill { node, fill } => {
                     let id = parse_node(node)?;
-                    // The one read-modify-write in the mapping: the kernel
-                    // replaces a node's properties as a whole, so the current
-                    // value has to be read to change one field of it.
-                    let Some(existing) = document.node(id) else {
-                        return Err(AppError::on_node(
-                            AppErrorCode::UnknownNode,
-                            id,
-                            "the node is not in the document",
-                        ));
-                    };
-                    let mut props = existing.props.clone();
+                    let mut props = self.pending_props(&out, &pending, id)?.clone();
                     props.fill = fill.map(|fill| Color {
                         r: fill.r,
                         g: fill.g,
                         b: fill.b,
                         a: fill.a,
                     });
-                    out.push(Command::SetNodeProps {
-                        id,
-                        props: Box::new(props),
-                    });
+                    self.stage_props(&mut out, &mut pending, id, props)?;
+                }
+                EditCommand::SetNodePosition { node, position } => {
+                    let id = parse_node(node)?;
+                    // Inside a flex container the layout decides where a child
+                    // sits, so a stored translation would be written and then
+                    // ignored. Refusing says why; accepting silently would make
+                    // the interface look broken.
+                    if self.position_is_layout_decided(id) {
+                        return Err(AppError::on_node(
+                            AppErrorCode::CommandRejected,
+                            id,
+                            "the parent lays out its children, so this node's position is not \
+                             its own to set",
+                        ));
+                    }
+                    let [x, y] = *position;
+                    let mut props = self.pending_props(&out, &pending, id)?.clone();
+                    let existing_coefficients = props.transform.coefficients();
+                    // Only the translation changes: the linear part — rotation,
+                    // scale, skew — is a separate decision and is left alone.
+                    props.transform = Transform::new([
+                        existing_coefficients[0],
+                        existing_coefficients[1],
+                        existing_coefficients[2],
+                        existing_coefficients[3],
+                        x,
+                        y,
+                    ])
+                    .map_err(|error| {
+                        AppError::on_node(
+                            AppErrorCode::InvalidRequest,
+                            id,
+                            format!("the position [{x}, {y}] is not usable: {error}"),
+                        )
+                    })?;
+                    self.stage_props(&mut out, &mut pending, id, props)?;
+                }
+                EditCommand::SetNodeSize { node, size } => {
+                    let id = parse_node(node)?;
+                    let [width, height] = *size;
+                    let size_value = Size::new(width, height).map_err(|error| {
+                        AppError::on_node(
+                            AppErrorCode::InvalidRequest,
+                            id,
+                            format!("the size [{width}, {height}] is not usable: {error}"),
+                        )
+                    })?;
+                    let mut props = self.pending_props(&out, &pending, id)?.clone();
+                    props.size = size_value;
+                    // A stored size only has an effect on a fixed axis, so setting
+                    // one states the intent rather than writing a value that hug
+                    // would ignore.
+                    props.width_sizing = Sizing::Fixed;
+                    props.height_sizing = Sizing::Fixed;
+                    self.stage_props(&mut out, &mut pending, id, props)?;
+                }
+                EditCommand::SetNodeCornerRadius { node, radius } => {
+                    let id = parse_node(node)?;
+                    let mut props = self.pending_props(&out, &pending, id)?.clone();
+                    match &mut props.content {
+                        swotvibe_core::Content::Shape(shape) => {
+                            shape.corner_radius = Scalar::new(*radius).map_err(|error| {
+                                AppError::on_node(
+                                    AppErrorCode::InvalidRequest,
+                                    id,
+                                    format!("the corner radius {radius} is not usable: {error}"),
+                                )
+                            })?;
+                        }
+                        // Only a shape has a corner. Refusing is honest: silently
+                        // accepting would store nothing and report success.
+                        _ => {
+                            return Err(AppError::on_node(
+                                AppErrorCode::CommandRejected,
+                                id,
+                                "only a shape node has a corner radius",
+                            ));
+                        }
+                    }
+                    self.stage_props(&mut out, &mut pending, id, props)?;
                 }
             }
         }
         Ok(out)
+    }
+
+    /// The node, or a typed error naming it.
+    ///
+    /// Used by every property edit, which needs the current value to build the
+    /// replacement the kernel expects.
+    fn require_node(&self, id: NodeId) -> Result<&Node, AppError> {
+        self.engine.document().node(id).ok_or_else(|| {
+            AppError::on_node(
+                AppErrorCode::UnknownNode,
+                id,
+                "the node is not in the document",
+            )
+        })
+    }
+
+    /// The properties a staged property edit should start from.
+    ///
+    /// An edit already staged for this node in this batch wins, because its
+    /// replacement is the newer value; otherwise the document's current value is
+    /// the base. Without this, two property edits on one node in one batch would
+    /// both start from the pre-batch state and the second would discard the first.
+    fn pending_props<'a>(
+        &'a self,
+        out: &'a [Command],
+        pending: &[(NodeId, usize)],
+        id: NodeId,
+    ) -> Result<&'a NodeProps, AppError> {
+        if let Some((_, index)) = pending.iter().find(|(node, _)| *node == id)
+            && let Some(Command::SetNodeProps { props, .. }) = out.get(*index)
+        {
+            return Ok(props.as_ref());
+        }
+        Ok(&self.require_node(id)?.props)
+    }
+
+    /// Records a property replacement, merging with one already staged for the
+    /// same node.
+    ///
+    /// The batch keeps one replacement per node, positioned where that node's
+    /// first property edit appeared, so the command order a caller reads still
+    /// matches the order it wrote.
+    fn stage_props(
+        &self,
+        out: &mut Vec<Command>,
+        pending: &mut Vec<(NodeId, usize)>,
+        id: NodeId,
+        props: NodeProps,
+    ) -> Result<(), AppError> {
+        if let Some((_, index)) = pending.iter().find(|(node, _)| *node == id)
+            && let Some(Command::SetNodeProps { props: slot, .. }) = out.get_mut(*index)
+        {
+            // Replace what is inside the existing box rather than allocating a
+            // new one: this runs once per property edit in a batch.
+            **slot = props;
+            return Ok(());
+        }
+        pending.push((id, out.len()));
+        out.push(Command::SetNodeProps {
+            id,
+            props: Box::new(props),
+        });
+        Ok(())
     }
 
     /// The family a new text node should start with.
@@ -712,6 +861,56 @@ impl EditorSession {
     /// the layout diagnostic rather than from a guess here.
     fn default_family(&self) -> Option<String> {
         self.text.fonts().families().into_iter().next()
+    }
+
+    /// The properties a newly created node starts with.
+    ///
+    /// The document model's default is the **schema** default — what an absent
+    /// record means — and it is deliberately empty: zero-sized and unfilled.
+    /// That must not change, because `size` is a required field in the persisted
+    /// form and an absent `props` record is read as this default, so treating a
+    /// different value as "the default" would silently change how every existing
+    /// file renders.
+    ///
+    /// A node a person just asked for is a different question. A zero-sized,
+    /// unfilled node is invisible, so creating one looks like the tool did
+    /// nothing. The size, paint and placeholder text below are **tool defaults**
+    /// — a design decision about what "new shape" means — which is why they live
+    /// in the application layer and not in the document model.
+    fn creation_props(&self, kind: NodeKind) -> NodeProps {
+        let mut props = NodeProps::default_for_with_font(kind, self.default_family().as_deref());
+        match kind {
+            // A container and a shape need a size and a paint to be visible.
+            NodeKind::Frame | NodeKind::Shape | NodeKind::Group => {
+                props.size = Size::new(120.0, 120.0).unwrap_or(Size::ZERO);
+                props.fill = Some(Color {
+                    r: 217,
+                    g: 217,
+                    b: 217,
+                    a: 255,
+                });
+            }
+            // Text hugs its content, so an empty string would measure to nothing.
+            // The placeholder is what makes the created node visible until text
+            // editing exists; it is not a claim about what the node should say.
+            NodeKind::Text => {
+                if let swotvibe_core::Content::Text(text) = &mut props.content {
+                    text.content = "Text".to_owned();
+                }
+                props.fill = Some(Color {
+                    r: 26,
+                    g: 26,
+                    b: 26,
+                    a: 255,
+                });
+            }
+            // An image with no asset has nothing to draw, which the renderer
+            // already reports as a diagnostic rather than a failure.
+            NodeKind::Image => {
+                props.size = Size::new(120.0, 120.0).unwrap_or(Size::ZERO);
+            }
+        }
+        props
     }
 
     /// Translates an interface placement into a kernel one.
@@ -879,7 +1078,18 @@ fn check_side(value: f64, what: &str) -> Result<f64, AppError> {
 }
 
 /// Builds the interface's view of one node's properties.
-fn props_view(node: &Node) -> PropsView {
+///
+/// `position_is_layout_decided` is a fact about the node's parent rather than
+/// about the node, so this takes it as an argument instead of reaching for the
+/// tree. It is what lets an interface disable a position field with a reason.
+impl EditorSession {
+    fn props_view(&self, node: &Node) -> PropsView {
+        props_view_of(node, self.position_is_layout_decided(node.id))
+    }
+}
+
+/// Builds the interface's view of one node's properties.
+fn props_view_of(node: &Node, position_is_layout_decided: bool) -> PropsView {
     let props = &node.props;
     let (shape_geometry, corner_radius) = match &props.content {
         swotvibe_core::Content::Shape(shape) => (
@@ -911,6 +1121,7 @@ fn props_view(node: &Node) -> PropsView {
         transform: props.transform.coefficients(),
         width_sizing: sizing_name(props.width_sizing).to_owned(),
         height_sizing: sizing_name(props.height_sizing).to_owned(),
+        position_is_layout_decided,
         fill: props.fill.map(rgba_of),
         stroke: props.stroke.map(|stroke| StrokeView {
             color: rgba_of(stroke.color),

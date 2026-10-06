@@ -26,10 +26,34 @@ import type {
   Preview,
   PreviewOptions,
   PropsView,
+  Rgba,
 } from './types'
 
 const PAGE_ID = '018f0000-0000-7000-8000-000000000022'
 const PAGE_SIZE: [number, number] = [480, 320]
+
+/**
+ * What a newly created node of each kind looks like.
+ *
+ * These mirror the real service's tool defaults, and they matter: the stand-in
+ * previously invented its own (80x80, always filled), which is more generous
+ * than the service, so a browser test passed while the desktop build created
+ * invisible zero-sized nodes. A stand-in that is kinder than what it stands in
+ * for hides the defect it exists to catch.
+ */
+const CREATION_DEFAULTS: Record<
+  string,
+  { size: [number, number]; fill: Rgba | null; text?: string }
+> = {
+  frame: { size: [120, 120], fill: { r: 217, g: 217, b: 217, a: 255 } },
+  group: { size: [120, 120], fill: { r: 217, g: 217, b: 217, a: 255 } },
+  shape: { size: [120, 120], fill: { r: 217, g: 217, b: 217, a: 255 } },
+  text: { size: [0, 0], fill: { r: 26, g: 26, b: 26, a: 255 }, text: 'Text' },
+  image: { size: [120, 120], fill: null },
+}
+
+/** The page the sample service will answer for. */
+export const SAMPLE_PAGE_ID = PAGE_ID
 
 function props(overrides: Partial<PropsView>): PropsView {
   return {
@@ -227,6 +251,10 @@ export class SampleEditorBridge {
           Object.assign(error, { code: 'unknown-node', node: parentId })
           throw error
         }
+        const defaults = CREATION_DEFAULTS[command.nodeKind] ?? {
+          size: [120, 120] as [number, number],
+          fill: { r: 217, g: 217, b: 217, a: 255 } as Rgba,
+        }
         this.nodes.push({
           id: command.node,
           kind: command.nodeKind,
@@ -234,17 +262,15 @@ export class SampleEditorBridge {
           parent: parentId,
           children: [],
           props: props({
-            // A created node needs a size to be visible; the reference service
-            // uses a modest default rather than a zero-sized node.
-            size: [80, 80],
-            fill: command.fill ?? { r: 200, g: 200, b: 200, a: 255 },
+            size: defaults.size,
+            fill: command.fill ?? defaults.fill,
             shapeGeometry: command.nodeKind === 'shape' ? 'rect' : null,
             cornerRadius: command.nodeKind === 'shape' ? 0 : null,
-            textContent: command.nodeKind === 'text' ? 'Text' : null,
+            textContent: defaults.text ?? null,
             fontFamily: command.nodeKind === 'text' ? 'Inter' : null,
             fontSize: command.nodeKind === 'text' ? 16 : null,
           }),
-          rect: [0, 0, 80, 80],
+          rect: [0, 0, defaults.size[0], defaults.size[1]],
         })
         if (parentId) {
           const parent = this.nodes.find((candidate) => candidate.id === parentId)

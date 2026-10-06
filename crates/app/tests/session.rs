@@ -22,7 +22,7 @@ use swotvibe_app::{
     AppErrorCode, EditCommand, EditRequest, EditorSession, NodeParent, PreviewOptions, Rgba,
     SharedTextEngine,
 };
-use swotvibe_core::PageId;
+use swotvibe_core::{NodeKind, PageId};
 use swotvibe_text::{FontSet, ParleyTextEngine};
 
 /// The node identities in `tests/fixtures/m0-sample-v2.json`.
@@ -155,6 +155,27 @@ fn move_node(node: &str, parent: NodeParent) -> EditCommand {
     EditCommand::MoveNode {
         node: node.to_owned(),
         parent,
+    }
+}
+
+fn set_position(node: &str, x: f64, y: f64) -> EditCommand {
+    EditCommand::SetNodePosition {
+        node: node.to_owned(),
+        position: [x, y],
+    }
+}
+
+fn set_size(node: &str, width: f64, height: f64) -> EditCommand {
+    EditCommand::SetNodeSize {
+        node: node.to_owned(),
+        size: [width, height],
+    }
+}
+
+fn set_corner(node: &str, radius: f64) -> EditCommand {
+    EditCommand::SetNodeCornerRadius {
+        node: node.to_owned(),
+        radius,
     }
 }
 
@@ -633,6 +654,109 @@ fn an_edit_is_visible_in_the_next_preview() {
 }
 
 #[test]
+fn a_created_node_is_visible_rather_than_zero_sized() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // The document model's default is deliberately empty — the schema default is
+    // what an absent record means, and changing it would change how existing files
+    // render. A node a person asked for is a different question: a zero-sized,
+    // unfilled node is invisible, so creating one looks like the tool did
+    // nothing. This is the assertion that the tool defaults are usable.
+    for kind in ["frame", "shape", "text"] {
+        let id = fresh_id(match kind {
+            "frame" => 0xC1,
+            "shape" => 0xC2,
+            _ => 0xC3,
+        });
+        session
+            .apply(&request_now(
+                &session,
+                vec![create(
+                    &id,
+                    kind,
+                    None,
+                    NodeParent::PageRoot {
+                        page: page.to_string(),
+                    },
+                )],
+            ))
+            .unwrap_or_else(|error| panic!("creating a {kind} should succeed: {error}"));
+
+        let props = session.node_props(&id).expect("the node exists");
+        if kind == "text" {
+            // A text node hugs its content, so its *stored* size stays zero and
+            // layout supplies the real one. What matters is that there is content
+            // to measure and paint.
+            assert!(
+                props
+                    .text_content
+                    .as_deref()
+                    .is_some_and(|text| !text.is_empty()),
+                "a created text node has content to measure, or it hugs to nothing"
+            );
+        } else {
+            assert!(
+                props.size[0] > 0.0 && props.size[1] > 0.0,
+                "a created {kind} has a size to draw, found {:?}",
+                props.size
+            );
+        }
+        assert!(
+            props.fill.is_some(),
+            "a created {kind} has paint, or it is invisible on a white page"
+        );
+    }
+
+    // And the geometry the canvas draws from has a non-empty rectangle.
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    for kind in ["frame", "shape", "text"] {
+        let id = match kind {
+            "frame" => fresh_id(0xC1),
+            "shape" => fresh_id(0xC2),
+            _ => fresh_id(0xC3),
+        };
+        let node = layout
+            .nodes
+            .iter()
+            .find(|node| node.id == id)
+            .unwrap_or_else(|| panic!("the created {kind} has geometry"));
+        assert!(
+            node.rect[2] > 0.0 && node.rect[3] > 0.0,
+            "a created {kind} draws with a non-empty rectangle, found {:?}",
+            node.rect
+        );
+    }
+}
+
+#[test]
+fn the_schema_default_is_still_empty() {
+    // Guards the distinction the tool defaults depend on: the document model's
+    // default is what an absent record means in the file format, so it must stay
+    // zero-sized and unpainted even though a *created* node is neither.
+    for kind in [
+        NodeKind::Frame,
+        NodeKind::Group,
+        NodeKind::Shape,
+        NodeKind::Text,
+        NodeKind::Image,
+    ] {
+        let props = swotvibe_core::NodeProps::default_for(kind);
+        assert_eq!(
+            props.size,
+            swotvibe_core::Size::ZERO,
+            "the schema default for {kind:?} stays empty"
+        );
+        assert!(
+            props.fill.is_none(),
+            "the schema default for {kind:?} stays unpainted"
+        );
+    }
+}
+
+#[test]
 fn a_created_text_node_names_a_registered_family() {
     let mut session = open_sample();
     let new_id = fresh_id(0xB1);
@@ -948,10 +1072,13 @@ fn a_created_node_lands_at_the_end_of_its_container() {
     assert_eq!(view.nodes.last().unwrap().name, "Added");
     assert_eq!(view.nodes.last().unwrap().kind, "shape");
 
-    // Default properties for the kind, so the node is immediately renderable.
+    // Default properties for the kind, so the node is immediately drawable.
     let props = session.node_props(&new_id).expect("the node exists");
     assert_eq!(props.shape_geometry.as_deref(), Some("rect"));
-    assert_eq!(props.fill, None);
+    assert!(
+        props.fill.is_some_and(|fill| fill.a == 255),
+        "a created shape is opaque, or it is invisible on a white page"
+    );
 }
 
 #[test]
@@ -1253,16 +1380,16 @@ fn a_fill_on_a_node_created_in_an_earlier_batch_is_applied() {
 }
 
 #[test]
-fn a_property_edit_of_a_node_created_in_the_same_batch_is_refused() {
+fn a_property_edit_of_a_node_created_in_the_same_batch_is_merged() {
     let mut session = open_sample();
-    let revision = session.revision().as_u64();
     let new_id = fresh_id(0xA9);
+    let fill = Rgba::opaque(1, 1, 1);
 
-    // A property edit reads the node's current properties to build the
-    // replacement, and a node created earlier in the same batch has none. The
-    // refusal is explicit rather than a silently dropped fill, and the batch
-    // leaves nothing behind.
-    let error = session
+    // A create stages the node's properties, so a later property edit in the same
+    // batch merges into what the create staged rather than reading a document that
+    // does not have the node yet. The two commands mean what they say: create it,
+    // then paint it.
+    session
         .apply(&request_now(
             &session,
             vec![
@@ -1274,23 +1401,58 @@ fn a_property_edit_of_a_node_created_in_the_same_batch_is_refused() {
                         page: first_page(&session).to_string(),
                     },
                 ),
-                set_fill(&new_id, Some(Rgba::opaque(1, 1, 1))),
+                set_fill(&new_id, Some(fill)),
             ],
         ))
-        .expect_err("the property edit cannot read a node that does not exist yet");
+        .expect("the batch applies");
 
-    assert_eq!(error.code, AppErrorCode::UnknownNode);
-    assert_eq!(error.node.as_deref(), Some(new_id.as_str()));
-    assert_eq!(session.revision().as_u64(), revision);
-    assert!(
-        session
-            .view()
-            .unwrap()
-            .nodes
-            .iter()
-            .all(|node| node.id != new_id),
-        "the whole batch was rolled back"
+    let props = session.node_props(&new_id).expect("the node exists");
+    assert_eq!(props.fill, Some(fill), "the fill survived the create");
+    assert_eq!(
+        props.size,
+        [120.0, 120.0],
+        "and the tool's size is still there, not replaced by the fill edit"
     );
+}
+
+#[test]
+fn several_property_edits_on_one_node_in_a_batch_all_apply() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // Each edit replaces the node's properties as a whole, so without merging the
+    // last one would silently discard the others. This is the assertion that a
+    // batch means what it says.
+    session
+        .apply(&request_now(
+            &session,
+            vec![
+                set_position(sample::CARD, 10.0, 20.0),
+                set_size(sample::CARD, 200.0, 100.0),
+                set_fill(sample::CARD, Some(Rgba::opaque(9, 9, 9))),
+            ],
+        ))
+        .expect("the batch applies");
+
+    let props = session.node_props(sample::CARD).unwrap();
+    assert_eq!(
+        [props.transform[4], props.transform[5]],
+        [10.0, 20.0],
+        "position"
+    );
+    assert_eq!(props.size, [200.0, 100.0], "size");
+    assert_eq!(props.fill, Some(Rgba::opaque(9, 9, 9)), "fill");
+
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    let node = layout
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .expect("the node has geometry");
+    assert_eq!([node.rect[0], node.rect[1]], [10.0, 20.0]);
+    assert_eq!([node.rect[2], node.rect[3]], [200.0, 100.0]);
 }
 
 #[test]
@@ -1348,6 +1510,350 @@ fn a_create_command_crosses_the_wire_in_the_documented_shape() {
     assert_eq!(command["nodeKind"], serde_json::json!("text"));
     assert_eq!(command["parent"]["in"], serde_json::json!("child"));
     assert_eq!(command["parent"]["parent"], serde_json::json!(sample::CARD));
+
+    let parsed: EditRequest = serde_json::from_value(json).expect("the request parses");
+    assert_eq!(parsed, request);
+}
+
+#[test]
+fn a_position_change_moves_a_node_the_layout_does_not_place() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // The sample's Card is a page root. A page has no layout rule, so the
+    // transform translation is the node's position — which is the case this
+    // edit exists for.
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_position(sample::CARD, 200.0, 150.0)],
+        ))
+        .expect("the move applies");
+
+    let props = session.node_props(sample::CARD).unwrap();
+    assert_eq!([props.transform[4], props.transform[5]], [200.0, 150.0]);
+
+    // The linear part is untouched: this command moves, it does not restyle.
+    assert_eq!(props.transform[0], 1.0, "scale is preserved");
+    assert_eq!(props.transform[1], 0.0, "rotation is preserved");
+
+    // And the geometry the canvas draws from follows.
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    let node = layout
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .expect("the node has geometry");
+    assert_eq!([node.rect[0], node.rect[1]], [200.0, 150.0]);
+}
+
+#[test]
+fn a_position_change_is_refused_when_the_parent_lays_the_node_out() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    // The sample's Card is a flex frame, so where its children sit comes from
+    // layout and a stored translation would be ignored. Accepting the value
+    // would make the interface look broken; the refusal names the reason.
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![set_position(sample::HEADER, 200.0, 150.0)],
+        ))
+        .expect_err("the parent places this node");
+
+    assert_eq!(error.code, AppErrorCode::CommandRejected);
+    assert!(error.message.contains("lays out"), "got: {}", error.message);
+    assert_eq!(error.node.as_deref(), Some(sample::HEADER));
+    assert_eq!(
+        session.revision().as_u64(),
+        revision,
+        "nothing was consumed"
+    );
+
+    // And the interface can know beforehand, so it disables the field with the
+    // same reason rather than letting the edit fail.
+    assert!(session.position_is_layout_decided(sample::HEADER.parse().expect("a valid identity")));
+    assert!(!session.position_is_layout_decided(sample::CARD.parse().expect("a valid identity")));
+    assert!(
+        session
+            .node_props(sample::HEADER)
+            .unwrap()
+            .position_is_layout_decided
+    );
+    assert!(
+        !session
+            .node_props(sample::CARD)
+            .unwrap()
+            .position_is_layout_decided
+    );
+}
+
+#[test]
+fn a_position_change_does_not_disturb_the_other_properties() {
+    let mut session = open_sample();
+    let before = session.node_props(sample::CARD).unwrap();
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_position(sample::CARD, 10.0, 20.0)],
+        ))
+        .expect("the move applies");
+
+    let after = session.node_props(sample::CARD).unwrap();
+    assert_eq!(after.fill, before.fill, "the fill is untouched");
+    assert_eq!(after.size, before.size, "the size is untouched");
+    assert_eq!(after.width_sizing, before.width_sizing);
+    assert_eq!(after.frame_layout, before.frame_layout);
+}
+
+#[test]
+fn an_unusable_position_is_refused_without_consuming_a_revision() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    for bad in [f64::NAN, f64::INFINITY, 1.0e12] {
+        let error = session
+            .apply(&request_now(
+                &session,
+                vec![set_position(sample::CARD, bad, 0.0)],
+            ))
+            .expect_err("the position is not usable");
+        assert_eq!(error.code, AppErrorCode::InvalidRequest, "for {bad}");
+        assert_eq!(
+            session.revision().as_u64(),
+            revision,
+            "nothing was consumed"
+        );
+    }
+}
+
+#[test]
+fn a_size_change_resizes_a_node_the_layout_does_not_stretch() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // A page root: no sibling pressure, so its size is its own.
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_size(sample::CARD, 300.0, 200.0)],
+        ))
+        .expect("the resize applies");
+
+    let props = session.node_props(sample::CARD).unwrap();
+    assert_eq!(props.size, [300.0, 200.0]);
+    // A stored size only has an effect on a fixed axis, so the edit states the
+    // intent rather than writing a length that `hug` would ignore.
+    assert_eq!(props.width_sizing, "fixed");
+    assert_eq!(props.height_sizing, "fixed");
+
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    let node = layout
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .expect("the node has geometry");
+    assert_eq!([node.rect[2], node.rect[3]], [300.0, 200.0]);
+}
+
+#[test]
+fn a_size_change_on_a_flex_child_stores_the_basis_and_layout_may_stretch_it() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // The sample's Card is a flex column, so a child's stored size is a flex
+    // basis: layout may stretch it to the cross axis. Both facts are recorded
+    // here so the relationship is stated rather than assumed equal.
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_size(sample::HEADER, 120.0, 60.0)],
+        ))
+        .expect("the resize applies");
+
+    let props = session.node_props(sample::HEADER).unwrap();
+    assert_eq!(
+        props.size,
+        [120.0, 60.0],
+        "the stored basis is what was asked"
+    );
+
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    let node = layout
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::HEADER)
+        .expect("the node has geometry");
+    assert!(
+        node.rect[2] >= 120.0,
+        "layout may stretch a flex child beyond its basis, never below it: {}",
+        node.rect[2]
+    );
+}
+
+#[test]
+fn a_resized_text_node_stops_hugging_and_takes_the_stored_size() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+
+    // The sample's text nodes hug their content, so they have no stored size.
+    let before = session.node_props(sample::LATIN).unwrap();
+    assert_eq!(before.width_sizing, "hug");
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_size(sample::LATIN, 240.0, 40.0)],
+        ))
+        .expect("the resize applies");
+
+    let props = session.node_props(sample::LATIN).unwrap();
+    assert_eq!(props.size, [240.0, 40.0]);
+    assert_eq!(
+        props.width_sizing, "fixed",
+        "the intent is stated, not implied"
+    );
+
+    // The stored size replaced the measured one. The parent is a flex column, so
+    // the height is the basis while the width is what the text was measured at
+    // before — either way it is no longer the hugged width.
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    let node = layout
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::LATIN)
+        .expect("the node has geometry");
+    assert!(
+        (node.rect[3] - 40.0).abs() < 1.0e-6,
+        "the fixed height is what layout used, found {}",
+        node.rect[3]
+    );
+}
+
+#[test]
+fn a_negative_size_is_refused() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![set_size(sample::CARD, -10.0, 10.0)],
+        ))
+        .expect_err("a negative side is not usable");
+    assert_eq!(error.code, AppErrorCode::InvalidRequest);
+    assert_eq!(session.revision().as_u64(), revision);
+}
+
+#[test]
+fn a_corner_radius_applies_to_a_shape_and_is_refused_on_a_text_node() {
+    let mut session = open_sample();
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![set_corner(sample::HEADER, 24.0)],
+        ))
+        .expect("the radius applies");
+    assert_eq!(
+        session.node_props(sample::HEADER).unwrap().corner_radius,
+        Some(24.0)
+    );
+
+    let revision = session.revision().as_u64();
+    let error = session
+        .apply(&request_now(&session, vec![set_corner(sample::LATIN, 8.0)]))
+        .expect_err("a text node has no corner radius");
+    assert_eq!(error.code, AppErrorCode::CommandRejected);
+    assert!(error.message.contains("shape"));
+    assert_eq!(
+        session.revision().as_u64(),
+        revision,
+        "the refusal consumed nothing"
+    );
+}
+
+#[test]
+fn geometry_edits_are_reversible() {
+    let mut session = open_sample();
+    let before = session.node_props(sample::CARD).unwrap();
+    let revisions_before = session.revision().as_u64();
+
+    // The Card is a page root, so position and size are both its own.
+    session
+        .apply(&request_now(
+            &session,
+            vec![
+                set_position(sample::CARD, 300.0, 200.0),
+                set_size(sample::CARD, 250.0, 180.0),
+            ],
+        ))
+        .expect("the batch applies");
+
+    let after = session.node_props(sample::CARD).unwrap();
+    assert_ne!(after.transform, before.transform);
+    assert_ne!(after.size, before.size);
+    assert_eq!(
+        session.revision().as_u64(),
+        revisions_before + 1,
+        "two commands in one batch advance the revision once"
+    );
+
+    let undone = session
+        .undo(session.revision().as_u64())
+        .expect("there is a step to undo");
+    assert_eq!(undone.revision, revisions_before + 2);
+
+    let restored = session.node_props(sample::CARD).unwrap();
+    assert_eq!(restored.transform, before.transform, "position came back");
+    assert_eq!(restored.size, before.size, "size came back");
+    assert_eq!(restored.corner_radius, before.corner_radius);
+    assert!(
+        !session.is_dirty(),
+        "undo restored the saved bytes, so the document is clean again"
+    );
+}
+
+#[test]
+fn geometry_commands_cross_the_wire_in_the_documented_shape() {
+    let request = EditRequest {
+        expected_revision: 1,
+        commands: vec![
+            set_position(sample::CARD, 10.0, 20.0),
+            set_size(sample::CARD, 30.0, 40.0),
+            set_corner(sample::HEADER, 6.0),
+        ],
+    };
+    let json = serde_json::to_value(&request).expect("the request serializes");
+
+    assert_eq!(
+        json["commands"][0]["kind"],
+        serde_json::json!("set-node-position")
+    );
+    assert_eq!(
+        json["commands"][0]["position"],
+        serde_json::json!([10.0, 20.0])
+    );
+    assert_eq!(
+        json["commands"][1]["kind"],
+        serde_json::json!("set-node-size")
+    );
+    assert_eq!(json["commands"][1]["size"], serde_json::json!([30.0, 40.0]));
+    assert_eq!(
+        json["commands"][2]["kind"],
+        serde_json::json!("set-node-corner-radius")
+    );
+    assert_eq!(json["commands"][2]["radius"], serde_json::json!(6.0));
 
     let parsed: EditRequest = serde_json::from_value(json).expect("the request parses");
     assert_eq!(parsed, request);

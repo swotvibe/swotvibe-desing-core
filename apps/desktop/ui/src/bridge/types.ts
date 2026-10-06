@@ -32,6 +32,13 @@ export interface PropsView {
   transform: [number, number, number, number, number, number]
   widthSizing: string
   heightSizing: string
+  /**
+   * Whether the parent's layout decides this node's position.
+   *
+   * Inside a flex container the position comes from layout, so a position field
+   * is disabled with a reason rather than accepting a value that never appears.
+   */
+  positionIsLayoutDecided: boolean
   fill: Rgba | null
   stroke: StrokeView | null
   shapeGeometry: string | null
@@ -141,6 +148,9 @@ export type EditCommand =
   | { kind: 'move-node'; node: string; parent: NodeParent }
   | { kind: 'rename-node'; node: string; name: string | null }
   | { kind: 'set-node-fill'; node: string; fill: Rgba | null }
+  | { kind: 'set-node-position'; node: string; position: [number, number] }
+  | { kind: 'set-node-size'; node: string; size: [number, number] }
+  | { kind: 'set-node-corner-radius'; node: string; radius: number }
 
 /**
  * Where a created or moved node goes.

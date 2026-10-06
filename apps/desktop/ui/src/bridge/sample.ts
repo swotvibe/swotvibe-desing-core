@@ -61,6 +61,7 @@ function props(overrides: Partial<PropsView>): PropsView {
     transform: [1, 0, 0, 1, 0, 0],
     widthSizing: 'fixed',
     heightSizing: 'fixed',
+    positionIsLayoutDecided: false,
     fill: null,
     stroke: null,
     shapeGeometry: null,
@@ -75,7 +76,15 @@ function props(overrides: Partial<PropsView>): PropsView {
   }
 }
 
-/** The sample's nodes, in paint order, with their committed geometry. */
+/**
+ * The sample's nodes, in paint order, with their committed geometry.
+ *
+ * These mirror `tests/fixtures/m0-sample-v2.json`, including the detail that the
+ * Card is a **flex** frame: its children's positions come from layout, so they
+ * are marked `positionIsLayoutDecided` and a position edit on them is refused —
+ * exactly as the real service refuses it. A stand-in that is more permissive than
+ * the service hides the defects it exists to catch.
+ */
 interface SampleNode {
   id: string
   kind: string
@@ -104,7 +113,9 @@ function sampleNodes(): SampleNode[] {
         size: [400, 240],
         transform: [1, 0, 0, 1, 40, 40],
         fill: { r: 255, g: 255, b: 255, a: 255 },
-        frameLayout: 'none',
+        // Mirrors the fixture: the Card is a flex column, so its children are
+        // placed by layout.
+        frameLayout: 'flex',
       }),
       rect: [40, 40, 400, 240],
     },
@@ -119,6 +130,7 @@ function sampleNodes(): SampleNode[] {
         fill: { r: 76, g: 110, b: 245, a: 255 },
         shapeGeometry: 'rect',
         cornerRadius: 8,
+        positionIsLayoutDecided: true,
       }),
       rect: [56, 56, 368, 48],
     },
@@ -135,6 +147,7 @@ function sampleNodes(): SampleNode[] {
         fontFamily: 'Inter',
         fontSize: 24,
         textDirection: 'auto',
+        positionIsLayoutDecided: true,
         widthSizing: 'hug',
         heightSizing: 'hug',
       }),
@@ -153,6 +166,7 @@ function sampleNodes(): SampleNode[] {
         fontFamily: 'Noto Sans Arabic',
         fontSize: 24,
         textDirection: 'rtl',
+        positionIsLayoutDecided: true,
         widthSizing: 'hug',
         heightSizing: 'hug',
       }),
@@ -169,6 +183,7 @@ function sampleNodes(): SampleNode[] {
         fill: { r: 255, g: 107, b: 107, a: 255 },
         shapeGeometry: 'ellipse',
         cornerRadius: 0,
+        positionIsLayoutDecided: true,
       }),
       rect: [56, 211.279052734375, 32, 32],
     },
@@ -326,6 +341,54 @@ export class SampleEditorBridge {
           node.props = { ...node.props, fill: command.fill }
           changed.push(node.id)
           break
+        case 'set-node-position': {
+          // The real service refuses this when the parent lays the node out;
+          // the stand-in does the same, so a browser test sees the real rule.
+          if (node.props.positionIsLayoutDecided) {
+            const error = new Error(
+              "the parent lays out its children, so this node's position is not its own to set",
+            )
+            Object.assign(error, { code: 'command-rejected', node: node.id })
+            throw error
+          }
+          const [x, y] = command.position
+          node.props = {
+            ...node.props,
+            transform: [
+              node.props.transform[0] ?? 1,
+              node.props.transform[1] ?? 0,
+              node.props.transform[2] ?? 0,
+              node.props.transform[3] ?? 1,
+              x,
+              y,
+            ],
+          }
+          node.rect = [x, y, node.rect[2], node.rect[3]]
+          changed.push(node.id)
+          break
+        }
+        case 'set-node-size': {
+          const [width, height] = command.size
+          if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0) {
+            const error = new Error(`the size [${width}, ${height}] is not usable`)
+            Object.assign(error, { code: 'invalid-request', node: node.id })
+            throw error
+          }
+          node.props = { ...node.props, size: [width, height], widthSizing: 'fixed', heightSizing: 'fixed' }
+          node.rect = [node.rect[0], node.rect[1], width, height]
+          changed.push(node.id)
+          break
+        }
+        case 'set-node-corner-radius': {
+          if (node.props.shapeGeometry === null) {
+            const error = new Error('only a shape node has a corner radius')
+            Object.assign(error, { code: 'command-rejected', node: node.id })
+            throw error
+          }
+          node.props = { ...node.props, cornerRadius: command.radius }
+          changed.push(node.id)
+          break
+        }
       }
     }
 

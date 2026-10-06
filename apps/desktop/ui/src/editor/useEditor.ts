@@ -76,6 +76,9 @@ export interface EditorSession {
   select: (id: string | null) => void
   selectAt: (pageX: number, pageY: number) => Promise<void>
   setFill: (fill: Rgba | null) => Promise<void>
+  setPosition: (x: number, y: number) => Promise<void>
+  setSize: (width: number, height: number) => Promise<void>
+  setCornerRadius: (radius: number) => Promise<void>
   renameSelected: (name: string) => Promise<void>
   undo: () => Promise<void>
   redo: () => Promise<void>
@@ -233,6 +236,27 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     const id = selectedId.value
     if (!id) return
     await edit([{ kind: 'set-node-fill', node: id, fill }])
+  }
+
+  /** Moves the selected node. Refused by the service when the parent lays it out. */
+  async function setPosition(x: number, y: number): Promise<void> {
+    const id = selectedId.value
+    if (!id) return
+    await edit([{ kind: 'set-node-position', node: id, position: [x, y] }])
+  }
+
+  /** Resizes the selected node, switching both axes to a fixed size. */
+  async function setSize(width: number, height: number): Promise<void> {
+    const id = selectedId.value
+    if (!id) return
+    await edit([{ kind: 'set-node-size', node: id, size: [width, height] }])
+  }
+
+  /** Sets the selected shape's corner radius. Refused on a node that has none. */
+  async function setCornerRadius(radius: number): Promise<void> {
+    const id = selectedId.value
+    if (!id) return
+    await edit([{ kind: 'set-node-corner-radius', node: id, radius }])
   }
 
   async function renameSelected(name: string): Promise<void> {
@@ -481,6 +505,9 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     select,
     selectAt,
     setFill,
+    setPosition,
+    setSize,
+    setCornerRadius,
     renameSelected,
     undo,
     redo,

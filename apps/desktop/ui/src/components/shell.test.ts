@@ -134,6 +134,7 @@ function props(): PropsView {
     transform: [1, 0, 0, 1, 0, 0],
     widthSizing: 'fixed',
     heightSizing: 'fixed',
+    positionIsLayoutDecided: false,
     fill: null,
     stroke: null,
     shapeGeometry: null,
@@ -512,6 +513,124 @@ describe('creating and deleting', () => {
     const session = createEditorSession(new VanishingBridge())
     expect(session.capabilities.value).toBeNull()
     expect(session.canCreate('shape')).toBe(false)
+  })
+})
+
+describe('editing geometry', () => {
+  it('renames the selected node from the inspector field', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+
+    const name = shell.find('input[aria-label="Node name"]')
+    expect((name.element as HTMLInputElement).value).toBe('Header')
+
+    await name.setValue('Banner')
+    await flushPromises()
+    await flushPromises()
+
+    const view = await bridge.getView()
+    expect(view.nodes.find((node) => node.id === HEADER)?.name).toBe('Banner')
+  })
+
+  it('moves a node whose position the layout does not decide', async () => {
+    const { shell, bridge } = await mountShell()
+
+    // The Card is a page root: a page has no layout rule, so the transform
+    // places it and the position fields act.
+    await selectLayer(shell, 'Card')
+    await flushPromises()
+
+    const fields = shell.findAll('input[aria-label="X"], input[aria-label="Y"]')
+    expect(fields.length).toBe(2)
+    expect(fields[0]?.attributes('disabled')).toBeUndefined()
+
+    await fields[0]!.setValue('120')
+    await flushPromises()
+    await flushPromises()
+
+    const props = await bridge.nodeProps(CARD)
+    expect(props.transform[4]).toBe(120)
+  })
+
+  it('disables the position fields when the parent lays the node out', async () => {
+    const { shell } = await mountShell()
+
+    // The Card is a flex column in both the fixture and the stand-in, so a
+    // child's position comes from layout. A field that accepted a value which
+    // never appears would look like a broken editor; the reason is on screen.
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+
+    const x = shell.find('input[aria-label="X"]')
+    expect(x.exists()).toBe(true)
+    expect(x.attributes('disabled')).toBeDefined()
+    expect(shell.text()).toContain("position comes from layout")
+  })
+
+  it('resizes a node from the inspector fields', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Card')
+    await flushPromises()
+
+    const width = shell.find('input[aria-label="W"]')
+    await width.setValue('250')
+    await flushPromises()
+    await flushPromises()
+
+    const props = await bridge.nodeProps(CARD)
+    expect(props.size[0]).toBe(250)
+    // Stating a size switches the axis to fixed, or `hug` would ignore it.
+    expect(props.widthSizing).toBe('fixed')
+  })
+
+  it('sets a corner radius on a shape and refuses it elsewhere', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+    const radius = shell.find('input[aria-label="R"]')
+    expect(radius.attributes('disabled')).toBeUndefined()
+
+    await radius.setValue('20')
+    await flushPromises()
+    await flushPromises()
+    expect((await bridge.nodeProps(HEADER)).cornerRadius).toBe(20)
+
+    // A text node has no corner: the field is disabled with the reason shown,
+    // matching the service's refusal.
+    await selectLayer(shell, 'Latin')
+    await flushPromises()
+    expect(shell.find('input[aria-label="R"]').attributes('disabled')).toBeDefined()
+    expect(shell.text()).toContain('Only a shape has a corner radius')
+  })
+
+  it('drops a half-typed number instead of storing it', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Card')
+    await flushPromises()
+    const before = await bridge.nodeProps(CARD)
+
+    const width = shell.find('input[aria-label="W"]')
+    ;(width.element as HTMLInputElement).value = 'abc'
+    await width.trigger('change')
+    await flushPromises()
+
+    expect((await bridge.nodeProps(CARD)).size).toEqual(before.size)
+  })
+
+  it('does not call a constant opacity a property', async () => {
+    const { shell } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+
+    // The schema has no opacity, so the panel says so rather than showing a
+    // value that nothing can change.
+    expect(shell.text()).toContain('Not in the schema yet')
   })
 })
 

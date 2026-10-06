@@ -108,14 +108,18 @@ function depthOf(node: NodeView): number {
 
       <ul class="pb-2">
         <li v-for="page in editor.view.value?.pages ?? []" :key="page.id">
-          <button
-            type="button"
-            class="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-shell-900"
-            :class="page.id === editor.view.value?.pages[0]?.id ? 'bg-shell-850' : ''"
+          <!--
+            One page today, so this is a label rather than a control. A button
+            that looks clickable and does nothing is worse than a row that does
+            not invite the click.
+          -->
+          <div
+            class="flex w-full items-center gap-2 bg-shell-850 px-3 py-1.5 text-left"
+            :aria-current="'page'"
           >
             <span class="size-2 rounded-sm bg-shell-700" aria-hidden="true" />
             <span class="truncate">{{ page.name }}</span>
-          </button>
+          </div>
         </li>
       </ul>
     </section>

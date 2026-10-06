@@ -40,8 +40,9 @@ const editor = useEditorSession()
       </button>
       <button
         type="button"
-        class="rounded p-1 text-ink-300 hover:bg-shell-900"
-        title="Collapse panel"
+        class="rounded p-1 text-ink-700"
+        disabled
+        title="Collapsing the panel is not implemented yet"
         aria-label="Collapse panel"
       >
         <PanelLeftClose class="size-3.5" aria-hidden="true" />

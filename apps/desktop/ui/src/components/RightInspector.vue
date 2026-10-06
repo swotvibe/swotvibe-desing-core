@@ -8,7 +8,6 @@ import {
   AlignStartVertical,
   Blend,
   ChevronDown,
-  CornerDownRight,
   Grid2x2,
   Minus,
   RotateCw,
@@ -21,6 +20,7 @@ import { alphaChannel, alphaPercent, fromHex, toHex } from '@/editor/color'
 import { useEditorSession } from '@/editor/useEditor'
 import InspectorAccount from '@/components/InspectorAccount.vue'
 import InspectorSection from '@/components/InspectorSection.vue'
+import NumberField from '@/components/NumberField.vue'
 import PropertyRow from '@/components/PropertyRow.vue'
 import type { Rgba } from '@/bridge/types'
 
@@ -55,7 +55,6 @@ const fillHex = computed(() => (props.value?.fill ? toHex(props.value.fill) : '#
 const fillAlpha = computed(() => (props.value?.fill ? alphaPercent(props.value.fill) : 100))
 const hasFill = computed(() => props.value?.fill != null)
 
-const positionLabel = computed(() => selected.value?.name || selected.value?.kind || 'Nothing')
 const kindLabel = computed(() => selected.value?.kind ?? '—')
 
 /**
@@ -68,6 +67,17 @@ const position = computed<[number, number] | null>(() => {
   const rect = editor.selectedRect.value
   return rect ? [rect[0], rect[1]] : null
 })
+
+/** Whether the parent's layout places this node, so position is not editable. */
+const positionLocked = computed(() => props.value?.positionIsLayoutDecided ?? false)
+
+/** Whether either axis fits its content, so the stored size is not what is used. */
+const hugs = computed(
+  () => props.value?.widthSizing === 'hug' || props.value?.heightSizing === 'hug',
+)
+
+/** Corner radius belongs to a shape, and the service refuses it elsewhere. */
+const isShape = computed(() => props.value?.shapeGeometry !== null)
 
 /**
  * The alignment buttons.
@@ -134,11 +144,19 @@ function toggle(name: keyof typeof open.value): void {
     <div class="min-h-0 flex-1 overflow-y-auto">
       <!-- The selected node's identity, so the panel is never ambiguous. -->
       <div class="flex items-center gap-2 border-b px-3 py-2 hairline">
-        <span class="text-[12px] font-medium">{{ positionLabel }}</span>
+        <input
+          :value="selected?.name ?? ''"
+          type="text"
+          class="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-[12px] font-medium text-ink-100 placeholder:text-ink-700 hover:border-white/10 focus:border-accent-500 focus:outline-none"
+          placeholder="Unnamed"
+          aria-label="Node name"
+          :disabled="!hasSelection"
+          @change="(event) => editor.renameSelected((event.target as HTMLInputElement).value)"
+        />
         <span class="rounded bg-shell-850 px-1.5 py-0.5 text-[10px] text-ink-500">
           {{ kindLabel }}
         </span>
-        <ChevronDown class="ml-auto size-3.5 text-ink-500" aria-hidden="true" />
+        <ChevronDown class="size-3.5 text-ink-500" aria-hidden="true" />
       </div>
 
       <p v-if="!hasSelection" class="px-3 py-4 text-[11px] text-ink-500">
@@ -175,15 +193,26 @@ function toggle(name: keyof typeof open.value): void {
           </div>
 
           <PropertyRow label="Position">
-            <span
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 hairline"
-            >
-              <span class="text-[10px] text-ink-700">X</span>
-              <span class="tabular-nums">{{ position ? position[0].toFixed(0) : '—' }}</span>
-              <span class="ml-auto text-[10px] text-ink-700">Y</span>
-              <span class="tabular-nums">{{ position ? position[1].toFixed(0) : '—' }}</span>
-            </span>
+            <div class="flex flex-1 items-center gap-1">
+              <NumberField
+                label="X"
+                :model-value="position ? Math.round(position[0]) : ''"
+                :disabled="positionLocked"
+                @commit="(value) => editor.setPosition(value, position?.[1] ?? 0)"
+              />
+              <NumberField
+                label="Y"
+                :model-value="position ? Math.round(position[1]) : ''"
+                :disabled="positionLocked"
+                @commit="(value) => editor.setPosition(position?.[0] ?? 0, value)"
+              />
+            </div>
           </PropertyRow>
+
+          <p v-if="positionLocked" class="px-3 pb-1 text-[10px] text-ink-700">
+            The parent lays its children out, so this node's position comes from
+            layout. Change the parent's layout to place it by hand.
+          </p>
 
           <PropertyRow label="Rotation">
             <span
@@ -206,15 +235,24 @@ function toggle(name: keyof typeof open.value): void {
           </PropertyRow>
 
           <PropertyRow label="W / H">
-            <span
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 hairline"
-            >
-              <span class="text-[10px] text-ink-700">W</span>
-              <span class="tabular-nums">{{ props?.size[0]?.toFixed(0) ?? '—' }}</span>
-              <span class="ml-auto text-[10px] text-ink-700">H</span>
-              <span class="tabular-nums">{{ props?.size[1]?.toFixed(0) ?? '—' }}</span>
-            </span>
+            <div class="flex flex-1 items-center gap-1">
+              <NumberField
+                label="W"
+                :model-value="Math.round(props?.size[0] ?? 0)"
+                @commit="(value) => editor.setSize(value, props?.size[1] ?? 0)"
+              />
+              <NumberField
+                label="H"
+                :model-value="Math.round(props?.size[1] ?? 0)"
+                @commit="(value) => editor.setSize(props?.size[0] ?? 0, value)"
+              />
+            </div>
           </PropertyRow>
+
+          <p v-if="hugs" class="px-3 pb-1 text-[10px] text-ink-700">
+            This node fits its content, so the stored size is not what layout uses.
+            Setting a size switches both axes to a fixed length.
+          </p>
 
           <PropertyRow label="Sizing">
             <span
@@ -246,21 +284,25 @@ function toggle(name: keyof typeof open.value): void {
         >
           <PropertyRow label="Opacity">
             <span
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 hairline"
+              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 text-ink-700 hairline"
             >
-              <Blend class="size-3 text-ink-700" aria-hidden="true" />
-              <span class="tabular-nums">100%</span>
+              <Blend class="size-3" aria-hidden="true" />
+              <span class="text-[11px]">Not in the schema yet</span>
             </span>
           </PropertyRow>
 
           <PropertyRow label="Corner radius">
-            <span
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 hairline"
-            >
-              <CornerDownRight class="size-3 text-ink-700" aria-hidden="true" />
-              <span class="tabular-nums">{{ props?.cornerRadius ?? '—' }}</span>
-            </span>
+            <NumberField
+              label="R"
+              :model-value="props?.cornerRadius ?? ''"
+              :disabled="!isShape"
+              @commit="(value) => editor.setCornerRadius(value)"
+            />
           </PropertyRow>
+
+          <p v-if="!isShape" class="px-3 pb-1 text-[10px] text-ink-700">
+            Only a shape has a corner radius.
+          </p>
         </InspectorSection>
 
         <InspectorSection title="Fill" :open="open.fill" @toggle="toggle('fill')">

@@ -31,8 +31,8 @@
 use std::sync::Arc;
 
 use swotvibe_core::{
-    AssetId, BatchError, Color, Command, Document, DocumentEngine, Node, NodeId, NodeKind, PageId,
-    Revision, Scalar, Snapshot, validate_untrusted,
+    BatchError, Color, Command, Document, DocumentEngine, Node, NodeId, NodeKind, NodePlacement,
+    NodeProps, PageId, Position, Revision, Snapshot, validate_untrusted,
 };
 use swotvibe_format::{export, from_json, import, to_json};
 use swotvibe_layout::{LayoutEngine, LayoutOptions, LayoutResult, TaffyLayoutEngine};
@@ -41,7 +41,8 @@ use swotvibe_text::TextLayoutEngine;
 
 use crate::dto::{
     CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult, LayoutNodeView,
-    LayoutView, NodeView, PageView, Preview, PreviewOptions, PropsView, Rgba, StrokeView,
+    LayoutView, NodeParent, NodeView, PageView, Preview, PreviewOptions, PropsView, Rgba,
+    StrokeView,
 };
 use crate::error::{AppError, AppErrorCode};
 
@@ -51,12 +52,6 @@ const DEFAULT_PREVIEW: PreviewOptions = PreviewOptions {
     scale: 1.0,
     background: [255, 255, 255, 255],
 };
-
-/// The largest preview side this layer will ask for.
-///
-/// A mistaken scale must not allocate an unbounded buffer. The bound is far
-/// above any interface preview and matches the renderer's own limit.
-const MAX_PREVIEW_PIXELS_PER_SIDE: f64 = 8192.0;
 
 /// The shared text engine a session measures with.
 ///
@@ -74,8 +69,14 @@ pub struct EditorSession {
     display_name: Option<String>,
     /// The canonical bytes last loaded or successfully saved.
     baseline: Option<Vec<u8>>,
-    /// The canonical bytes for `cached_revision`, when they have been computed.
-    cached: Option<(Revision, Vec<u8>)>,
+    /// Whether the document differs from `baseline`.
+    ///
+    /// Tracked rather than computed per request: comparing the document's bytes
+    /// costs a full serialization, and every read path — a view, a save prompt,
+    /// a window title — would pay it. The flag is recomputed by the two
+    /// operations that can change the answer, so a read stays cheap and does not
+    /// need `&mut self`.
+    dirty: bool,
     preview_defaults: PreviewOptions,
 }
 
@@ -84,6 +85,7 @@ impl std::fmt::Debug for EditorSession {
         f.debug_struct("EditorSession")
             .field("revision", &self.engine.revision())
             .field("display_name", &self.display_name)
+            .field("dirty", &self.dirty)
             .field("has_baseline", &self.baseline.is_some())
             .finish_non_exhaustive()
     }
@@ -102,10 +104,13 @@ impl EditorSession {
             assets: None,
             display_name: None,
             baseline: None,
-            cached: None,
+            dirty: false,
             preview_defaults: DEFAULT_PREVIEW,
         };
-        session.baseline = session.canonical().ok();
+        // A fresh document is clean because it matches the bytes it would write.
+        // Recording those bytes now is what makes the first `is_dirty` honest
+        // rather than a special case.
+        session.baseline = canonical_of(&mut session.engine).ok();
         session
     }
 
@@ -114,11 +119,6 @@ impl EditorSession {
     pub fn with_assets(mut self, assets: RenderAssets) -> Self {
         self.assets = Some(assets);
         self
-    }
-
-    /// Replaces the preview defaults a caller does not override per request.
-    pub fn set_preview_defaults(&mut self, options: PreviewOptions) {
-        self.preview_defaults = options;
     }
 
     /// The document's current revision.
@@ -147,13 +147,8 @@ impl EditorSession {
 
     /// Whether the document differs from its last loaded or saved state.
     #[must_use]
-    pub fn is_dirty(&mut self) -> bool {
-        match (self.canonical(), self.baseline.as_ref()) {
-            (Ok(current), Some(baseline)) => current != *baseline,
-            // Without a baseline there is nothing to compare against, so the
-            // honest answer is that the state is unsaved.
-            _ => true,
-        }
+    pub const fn is_dirty(&self) -> bool {
+        self.dirty
     }
 
     /// Reads the open document.
@@ -162,8 +157,7 @@ impl EditorSession {
     ///
     /// Returns [`AppErrorCode::Schema`] when the document cannot be projected
     /// into its persisted form, which would be a bug rather than bad input.
-    pub fn view(&mut self) -> Result<DocumentView, AppError> {
-        let dirty = self.is_dirty();
+    pub fn view(&self) -> Result<DocumentView, AppError> {
         let document = self.engine.document();
         let revision = document.revision();
 
@@ -186,7 +180,7 @@ impl EditorSession {
 
         Ok(DocumentView {
             revision: revision.as_u64(),
-            dirty,
+            dirty: self.dirty,
             display_name: self.display_name.clone(),
             pages,
             nodes,
@@ -248,7 +242,7 @@ impl EditorSession {
         let baseline = canonical_of(&mut engine)?;
         self.engine = engine;
         self.baseline = Some(baseline);
-        self.cached = None;
+        self.dirty = false;
         self.display_name = display_name;
         self.view()
     }
@@ -303,12 +297,15 @@ impl EditorSession {
     /// document as saved: that only happens in [`EditorSession::note_saved`],
     /// after the write actually succeeded.
     ///
+    /// Takes `&mut self` only because projection needs the engine mutably; it
+    /// changes no session state.
+    ///
     /// # Errors
     ///
     /// Returns [`AppErrorCode::Schema`] when the document cannot be projected
     /// into its persisted form.
     pub fn export_bytes(&mut self) -> Result<Vec<u8>, AppError> {
-        self.canonical()
+        canonical_of(&mut self.engine)
     }
 
     /// Records that the current bytes were written successfully.
@@ -317,8 +314,9 @@ impl EditorSession {
     ///
     /// As [`EditorSession::export_bytes`].
     pub fn note_saved(&mut self) -> Result<(), AppError> {
-        let bytes = self.canonical()?;
+        let bytes = canonical_of(&mut self.engine)?;
         self.baseline = Some(bytes);
+        self.dirty = false;
         Ok(())
     }
 
@@ -534,19 +532,29 @@ impl EditorSession {
 
     /// Runs one committing operation and summarizes the result.
     ///
-    /// A failure returns the kernel's error unchanged and leaves the cached
-    /// bytes alone, so a rejected operation cannot make the session look saved.
+    /// A failure returns the kernel's error unchanged and leaves the session as
+    /// it was, so a rejected operation cannot make the document look saved.
+    ///
+    /// The dirty flag is recomputed here — once per commit, not once per read —
+    /// because a commit is the only thing that can change the answer. Comparing
+    /// bytes is the honest test: an undo that restores the saved content leaves
+    /// the document clean, and a redo that moves away makes it dirty again.
     fn commit(
         &mut self,
         operation: impl FnOnce(&mut DocumentEngine) -> Result<swotvibe_core::Commit, AppError>,
     ) -> Result<CommitSummary, AppError> {
         let commit = operation(&mut self.engine)?;
         let change_set = commit.change_set().clone();
-        self.cached = None;
+        self.dirty = match (&mut self.baseline, canonical_of(&mut self.engine)) {
+            (Some(baseline), Ok(current)) => current != *baseline,
+            // Without a baseline there is nothing to compare against, so the
+            // honest answer is that the state is unsaved.
+            _ => true,
+        };
         Ok(CommitSummary {
             previous_revision: change_set.previous_revision().as_u64(),
             revision: change_set.new_revision().as_u64(),
-            dirty: self.is_dirty(),
+            dirty: self.dirty,
             can_undo: self.engine.can_undo(),
             can_redo: self.engine.can_redo(),
             added_nodes: change_set.added_nodes().map(|id| id.to_string()).collect(),
@@ -571,27 +579,76 @@ impl EditorSession {
     /// A property edit reads the node's current properties first, because the
     /// kernel replaces a node's properties as a whole. Doing that here keeps the
     /// read-modify-write in one place instead of asking every host to repeat it.
+    ///
+    /// Existence is **not** checked here. The kernel validates each command
+    /// against the state as the batch applies, so a command may name a node an
+    /// earlier command in the same batch created — a create followed by an edit
+    /// of the created node is one atomic batch. Pre-checking here would reject
+    /// that legal batch, and would duplicate the kernel's rules in a second
+    /// place that could drift.
+    ///
+    /// Created nodes land at the end of their container: the interface says "in
+    /// this page" or "under this node", and the kernel decides the index.
     fn to_kernel_commands(&self, commands: &[EditCommand]) -> Result<Vec<Command>, AppError> {
         let document = self.engine.document();
         let mut out = Vec::with_capacity(commands.len());
         for command in commands {
             match command {
-                EditCommand::RenameNode { node, name } => {
+                EditCommand::CreateNode {
+                    node,
+                    node_kind,
+                    name,
+                    fill,
+                    parent,
+                } => {
                     let id = parse_node(node)?;
-                    if document.node(id).is_none() {
-                        return Err(AppError::on_node(
-                            AppErrorCode::UnknownNode,
-                            id,
-                            "the node is not in the document",
-                        ));
-                    }
-                    out.push(Command::RenameNode {
+                    let kind = parse_kind(node_kind)?;
+                    let parent = self.to_kernel_placement(parent)?;
+                    out.push(Command::CreateNode {
                         id,
+                        kind,
+                        name: name.clone(),
+                        parent,
+                    });
+                    // A created node starts with the kind's default properties;
+                    // a requested fill is applied as its own command right after,
+                    // inside the same batch, so the create carries no hidden
+                    // property logic.
+                    if let Some(fill) = fill {
+                        let mut props = NodeProps::default_for(kind);
+                        props.fill = Some(Color {
+                            r: fill.r,
+                            g: fill.g,
+                            b: fill.b,
+                            a: fill.a,
+                        });
+                        out.push(Command::SetNodeProps {
+                            id,
+                            props: Box::new(props),
+                        });
+                    }
+                }
+                EditCommand::DeleteNode { node } => {
+                    out.push(Command::DeleteNode {
+                        id: parse_node(node)?,
+                    });
+                }
+                EditCommand::MoveNode { node, parent } => {
+                    let id = parse_node(node)?;
+                    let parent = self.to_kernel_placement(parent)?;
+                    out.push(Command::MoveNode { id, parent });
+                }
+                EditCommand::RenameNode { node, name } => {
+                    out.push(Command::RenameNode {
+                        id: parse_node(node)?,
                         name: name.clone(),
                     });
                 }
                 EditCommand::SetNodeFill { node, fill } => {
                     let id = parse_node(node)?;
+                    // The one read-modify-write in the mapping: the kernel
+                    // replaces a node's properties as a whole, so the current
+                    // value has to be read to change one field of it.
                     let Some(existing) = document.node(id) else {
                         return Err(AppError::on_node(
                             AppErrorCode::UnknownNode,
@@ -616,17 +673,44 @@ impl EditorSession {
         Ok(out)
     }
 
-    /// The canonical persisted bytes, computed at most once per revision.
-    fn canonical(&mut self) -> Result<Vec<u8>, AppError> {
-        let revision = self.engine.revision();
-        if let Some((cached_revision, bytes)) = &self.cached
-            && *cached_revision == revision
-        {
-            return Ok(bytes.clone());
+    /// Translates an interface placement into a kernel one.
+    ///
+    /// The interface's placement vocabulary is deliberately narrower than the
+    /// kernel's: a created or moved node goes to the end of its container, which
+    /// is what every caller so far wants, and the kernel's richer positions stay
+    /// available for a future reorder command.
+    fn to_kernel_placement(&self, parent: &NodeParent) -> Result<NodePlacement, AppError> {
+        let document = self.engine.document();
+        match parent {
+            NodeParent::PageRoot { page } => {
+                let page = parse_page(page)?;
+                if document.page(page).is_none() {
+                    return Err(AppError::on_page(
+                        AppErrorCode::UnknownPage,
+                        page,
+                        "the page is not in the document",
+                    ));
+                }
+                Ok(NodePlacement::PageRoot {
+                    page,
+                    position: Position::Last,
+                })
+            }
+            NodeParent::Child { parent } => {
+                let parent = parse_node(parent)?;
+                if document.node(parent).is_none() {
+                    return Err(AppError::on_node(
+                        AppErrorCode::UnknownNode,
+                        parent,
+                        "the parent node is not in the document",
+                    ));
+                }
+                Ok(NodePlacement::Child {
+                    parent,
+                    position: Position::Last,
+                })
+            }
         }
-        let bytes = canonical_of(&mut self.engine)?;
-        self.cached = Some((revision, bytes.clone()));
-        Ok(bytes)
     }
 
     /// Lays out a page, failing with a typed error when the page is unknown.
@@ -687,6 +771,34 @@ fn parse_node(value: &str) -> Result<NodeId, AppError> {
     })
 }
 
+/// Parses a page identity from the wire.
+fn parse_page(value: &str) -> Result<PageId, AppError> {
+    value.parse().map_err(|error| {
+        AppError::new(
+            AppErrorCode::InvalidRequest,
+            format!("`{value}` is not a page identity: {error}"),
+        )
+    })
+}
+
+/// Parses a node kind from its stable wire name.
+///
+/// The names match `NodeKind::as_str`, so a kind round-trips through the
+/// interface without a second naming scheme.
+fn parse_kind(value: &str) -> Result<NodeKind, AppError> {
+    match value {
+        "frame" => Ok(NodeKind::Frame),
+        "group" => Ok(NodeKind::Group),
+        "shape" => Ok(NodeKind::Shape),
+        "text" => Ok(NodeKind::Text),
+        "image" => Ok(NodeKind::Image),
+        other => Err(AppError::new(
+            AppErrorCode::InvalidRequest,
+            format!("`{other}` is not a node kind"),
+        )),
+    }
+}
+
 /// Checks a preview scale and returns it.
 fn check_scale(scale: f64) -> Result<f64, AppError> {
     if !scale.is_finite() || scale <= 0.0 {
@@ -705,6 +817,9 @@ fn check_scale(scale: f64) -> Result<f64, AppError> {
 }
 
 /// Checks one artboard side and returns it.
+///
+/// The upper bound is the renderer's own limit rather than a second number kept
+/// in step by hand: two constants that must stay equal eventually do not.
 fn check_side(value: f64, what: &str) -> Result<f64, AppError> {
     if !value.is_finite() || value <= 0.0 {
         return Err(AppError::new(
@@ -712,12 +827,11 @@ fn check_side(value: f64, what: &str) -> Result<f64, AppError> {
             format!("the {what} {value} must be finite and positive"),
         ));
     }
-    if value > MAX_PREVIEW_PIXELS_PER_SIDE {
+    let limit = f64::from(swotvibe_render::MAX_PIXELS_PER_SIDE);
+    if value > limit {
         return Err(AppError::new(
             AppErrorCode::ResourceLimit,
-            format!(
-                "the {what} {value} is above the supported maximum of {MAX_PREVIEW_PIXELS_PER_SIDE}"
-            ),
+            format!("the {what} {value} is above the supported maximum of {limit}"),
         ));
     }
     Ok(value)
@@ -810,42 +924,4 @@ const fn frame_layout_name(layout: swotvibe_core::FrameLayout) -> &'static str {
         swotvibe_core::FrameLayout::None => "none",
         swotvibe_core::FrameLayout::Flex(_) => "flex",
     }
-}
-
-/// Whether a kind can be selected in the interface.
-///
-/// Every kind in the current schema can, so this exists to state the intent
-/// rather than to filter: a future kind that is not selectable is added here.
-#[must_use]
-pub const fn is_selectable(kind: NodeKind) -> bool {
-    matches!(
-        kind,
-        NodeKind::Group | NodeKind::Frame | NodeKind::Shape | NodeKind::Text | NodeKind::Image
-    )
-}
-
-/// A scalar the kernel will accept, or an error naming what was wrong.
-///
-/// Kept for hosts that build a property from user input and want the kernel's
-/// own rule enforced before they commit to a command.
-///
-/// # Errors
-///
-/// [`AppErrorCode::InvalidRequest`] for a value the kernel would refuse.
-pub fn checked_scalar(value: f64, what: &str) -> Result<Scalar, AppError> {
-    Scalar::new(value).map_err(|error| {
-        AppError::new(
-            AppErrorCode::InvalidRequest,
-            format!("the {what} {value} is not a usable design-unit value: {error}"),
-        )
-    })
-}
-
-/// Checks that an asset identity is one this session can resolve.
-///
-/// A host uses this before it reports an image as available, so "the asset is
-/// registered" is answered by one place rather than by each caller.
-#[must_use]
-pub fn asset_is_registered(document: &Document, asset: AssetId) -> bool {
-    document.asset(asset).is_some()
 }

@@ -19,7 +19,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use swotvibe_app::{
-    AppErrorCode, EditCommand, EditRequest, EditorSession, PreviewOptions, Rgba, SharedTextEngine,
+    AppErrorCode, EditCommand, EditRequest, EditorSession, NodeParent, PreviewOptions, Rgba,
+    SharedTextEngine,
 };
 use swotvibe_core::PageId;
 use swotvibe_text::{FontSet, ParleyTextEngine};
@@ -123,6 +124,45 @@ fn rename(node: &str, name: Option<&str>) -> EditCommand {
     }
 }
 
+fn create(node: &str, kind: &str, name: Option<&str>, parent: NodeParent) -> EditCommand {
+    EditCommand::CreateNode {
+        node: node.to_owned(),
+        node_kind: kind.to_owned(),
+        name: name.map(ToOwned::to_owned),
+        fill: None,
+        parent,
+    }
+}
+
+/// A create that also sets the node's fill, in one command.
+fn create_filled(node: &str, kind: &str, fill: Rgba, parent: NodeParent) -> EditCommand {
+    EditCommand::CreateNode {
+        node: node.to_owned(),
+        node_kind: kind.to_owned(),
+        name: None,
+        fill: Some(fill),
+        parent,
+    }
+}
+
+fn delete(node: &str) -> EditCommand {
+    EditCommand::DeleteNode {
+        node: node.to_owned(),
+    }
+}
+
+fn move_node(node: &str, parent: NodeParent) -> EditCommand {
+    EditCommand::MoveNode {
+        node: node.to_owned(),
+        parent,
+    }
+}
+
+/// A fresh identity that is not in the sample, for a create command.
+fn fresh_id(suffix: u32) -> String {
+    format!("018f0000-0000-7000-8000-0000000{suffix:05x}")
+}
+
 fn first_page(session: &EditorSession) -> PageId {
     session.first_page().expect("the sample has a page")
 }
@@ -140,7 +180,8 @@ fn node_name(session: &mut EditorSession, id: &str) -> String {
 
 #[test]
 fn a_new_session_is_empty_and_not_dirty() {
-    let mut session = EditorSession::new(text_engine());
+    // A read needs no mutable session: `is_dirty` and `view` take `&self`.
+    let session = EditorSession::new(text_engine());
 
     assert!(
         !session.is_dirty(),
@@ -160,7 +201,7 @@ fn a_new_session_is_empty_and_not_dirty() {
 
 #[test]
 fn opening_the_sample_produces_the_documented_view() {
-    let mut session = open_sample();
+    let session = open_sample();
     let revision = session.revision().as_u64();
 
     assert_eq!(session.display_name(), Some("m0-sample-v2.json"));
@@ -592,6 +633,33 @@ fn an_edit_is_visible_in_the_next_preview() {
 }
 
 #[test]
+fn a_preview_carries_its_pixels_through_serialization() {
+    let session = open_sample();
+    let page = first_page(&session);
+    let preview = session.preview(page, preview_options()).unwrap();
+
+    // A preview is returned by a host command, so it is serialized. A field that
+    // is skipped would make the command look successful while returning no
+    // image, which is why this asserts on the round trip and not on the struct.
+    let json = serde_json::to_value(&preview).expect("the preview serializes");
+    let bytes = json["png"]
+        .as_array()
+        .expect("the PNG is present in the serialized form");
+    assert_eq!(
+        bytes.len(),
+        preview.png.len(),
+        "every pixel byte crosses the wire"
+    );
+    assert_eq!(bytes[0].as_u64(), Some(0x89), "the PNG signature survives");
+    assert_eq!(json["revision"], serde_json::json!(preview.revision));
+    assert_eq!(json["width"], serde_json::json!(preview.width));
+
+    let parsed: swotvibe_app::Preview =
+        serde_json::from_value(json).expect("the preview parses back");
+    assert_eq!(parsed, preview, "the round trip is lossless");
+}
+
+#[test]
 fn a_preview_of_an_unknown_page_is_a_typed_error() {
     let session = open_sample();
 
@@ -733,6 +801,445 @@ fn the_layout_view_reports_the_geometry_a_selection_overlay_draws() {
             .code,
         AppErrorCode::UnknownPage
     );
+}
+
+#[test]
+fn a_created_node_lands_at_the_end_of_its_container() {
+    let mut session = open_sample();
+    let page = first_page(&session);
+    let new_id = fresh_id(0xA1);
+
+    let summary = session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &new_id,
+                "shape",
+                Some("Added"),
+                NodeParent::PageRoot {
+                    page: page.to_string(),
+                },
+            )],
+        ))
+        .expect("the create applies");
+
+    assert_eq!(summary.added_nodes, vec![new_id.clone()]);
+    assert_eq!(summary.revision, session.revision().as_u64());
+
+    // The new node is the last root, after the Card frame.
+    let view = session.view().expect("the view is available");
+    assert_eq!(
+        view.pages[0].roots.last().map(String::as_str),
+        Some(new_id.as_str()),
+        "a created node lands at the end of the page's roots"
+    );
+    assert_eq!(view.nodes.last().unwrap().id, new_id);
+    assert_eq!(view.nodes.last().unwrap().name, "Added");
+    assert_eq!(view.nodes.last().unwrap().kind, "shape");
+
+    // Default properties for the kind, so the node is immediately renderable.
+    let props = session.node_props(&new_id).expect("the node exists");
+    assert_eq!(props.shape_geometry.as_deref(), Some("rect"));
+    assert_eq!(props.fill, None);
+}
+
+#[test]
+fn a_created_child_goes_under_its_parent() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xA2);
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &new_id,
+                "shape",
+                None,
+                NodeParent::Child {
+                    parent: sample::CARD.to_owned(),
+                },
+            )],
+        ))
+        .expect("the create applies");
+
+    let view = session.view().expect("the view is available");
+    let card = view
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .expect("the frame is present");
+    assert_eq!(
+        card.children.last().map(String::as_str),
+        Some(new_id.as_str()),
+        "a created child lands at the end of its parent's children"
+    );
+    assert_eq!(
+        view.nodes
+            .iter()
+            .find(|node| node.id == new_id)
+            .unwrap()
+            .parent
+            .as_deref(),
+        Some(sample::CARD)
+    );
+}
+
+#[test]
+fn a_create_with_a_taken_identity_is_refused() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                sample::HEADER,
+                "shape",
+                None,
+                NodeParent::PageRoot {
+                    page: first_page(&session).to_string(),
+                },
+            )],
+        ))
+        .expect_err("the identity is already taken");
+
+    assert_eq!(error.code, AppErrorCode::CommandRejected);
+    assert_eq!(error.node.as_deref(), Some(sample::HEADER));
+    assert_eq!(
+        session.revision().as_u64(),
+        revision,
+        "nothing was consumed"
+    );
+}
+
+#[test]
+fn an_unknown_kind_is_an_invalid_request() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &fresh_id(0xA3),
+                "spline",
+                None,
+                NodeParent::PageRoot {
+                    page: first_page(&session).to_string(),
+                },
+            )],
+        ))
+        .expect_err("the kind does not exist");
+
+    assert_eq!(error.code, AppErrorCode::InvalidRequest);
+    assert!(error.message.contains("spline"));
+    assert_eq!(session.revision().as_u64(), revision);
+}
+
+#[test]
+fn a_create_under_an_unknown_parent_is_refused() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &fresh_id(0xA4),
+                "shape",
+                None,
+                NodeParent::Child {
+                    parent: sample::ABSENT.to_owned(),
+                },
+            )],
+        ))
+        .expect_err("the parent does not exist");
+
+    assert_eq!(error.code, AppErrorCode::UnknownNode);
+    assert_eq!(session.revision().as_u64(), revision);
+}
+
+#[test]
+fn deleting_a_leaf_removes_only_that_node() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let summary = session
+        .apply(&request_now(&session, vec![delete(sample::DOT)]))
+        .expect("the delete applies");
+
+    assert_eq!(summary.removed_nodes, vec![sample::DOT.to_owned()]);
+
+    let view = session.view().expect("the view is available");
+    assert_eq!(view.nodes.len(), 4, "one node left the document");
+    assert!(
+        !view.nodes.iter().any(|node| node.id == sample::DOT),
+        "the deleted node is gone"
+    );
+    let card = view
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .unwrap();
+    assert!(
+        !card.children.iter().any(|id| id == sample::DOT),
+        "the parent no longer names the deleted child"
+    );
+    assert_eq!(session.revision().as_u64(), revision + 1);
+}
+
+#[test]
+fn deleting_a_container_removes_its_whole_subtree() {
+    let mut session = open_sample();
+
+    let summary = session
+        .apply(&request_now(&session, vec![delete(sample::CARD)]))
+        .expect("the delete applies");
+
+    // The frame and its four children are all gone, which is what "removes the
+    // subtree" means.
+    assert_eq!(summary.removed_nodes.len(), 5);
+    let view = session.view().expect("the view is available");
+    assert!(view.nodes.is_empty());
+    assert!(view.pages[0].roots.is_empty());
+}
+
+#[test]
+fn deleting_an_unknown_node_is_refused_without_consuming_a_revision() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(&session, vec![delete(sample::ABSENT)]))
+        .expect_err("the node does not exist");
+
+    assert_eq!(error.code, AppErrorCode::UnknownNode);
+    assert_eq!(session.revision().as_u64(), revision);
+}
+
+#[test]
+fn undo_restores_a_deleted_subtree_and_redo_removes_it_again() {
+    let mut session = open_sample();
+
+    session
+        .apply(&request_now(&session, vec![delete(sample::CARD)]))
+        .expect("the delete applies");
+    assert!(session.view().unwrap().nodes.is_empty());
+
+    session
+        .undo(session.revision().as_u64())
+        .expect("there is a step to undo");
+    let view = session.view().expect("the view is available");
+    assert_eq!(view.nodes.len(), 5, "the whole subtree came back");
+    assert_eq!(view.pages[0].roots, vec![sample::CARD.to_owned()]);
+
+    session
+        .redo(session.revision().as_u64())
+        .expect("there is a step to redo");
+    assert!(session.view().unwrap().nodes.is_empty());
+}
+
+#[test]
+fn a_moved_node_keeps_its_identity_and_changes_its_parent() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xA5);
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![
+                create(
+                    &new_id,
+                    "shape",
+                    None,
+                    NodeParent::PageRoot {
+                        page: first_page(&session).to_string(),
+                    },
+                ),
+                move_node(
+                    &new_id,
+                    NodeParent::Child {
+                        parent: sample::CARD.to_owned(),
+                    },
+                ),
+            ],
+        ))
+        .expect("the create and move apply");
+
+    let view = session.view().expect("the view is available");
+    assert_eq!(
+        view.pages[0].roots.len(),
+        1,
+        "the node left the page's roots"
+    );
+    let moved = view.nodes.iter().find(|node| node.id == new_id).unwrap();
+    assert_eq!(moved.parent.as_deref(), Some(sample::CARD));
+    let card = view
+        .nodes
+        .iter()
+        .find(|node| node.id == sample::CARD)
+        .unwrap();
+    assert_eq!(card.children.len(), 5, "the frame gained a fifth child");
+}
+
+#[test]
+fn a_created_node_can_carry_its_fill_from_the_same_batch() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xA6);
+    let fill = Rgba::opaque(12, 200, 90);
+
+    // One batch: create a shape with a fill. The fill travels in the create
+    // command because a property edit reads the node's current properties, and a
+    // node the same batch creates has none yet.
+    let summary = session
+        .apply(&request_now(
+            &session,
+            vec![create_filled(
+                &new_id,
+                "shape",
+                fill,
+                NodeParent::PageRoot {
+                    page: first_page(&session).to_string(),
+                },
+            )],
+        ))
+        .expect("the batch applies");
+
+    assert_eq!(summary.added_nodes, vec![new_id.clone()]);
+    assert_eq!(
+        session.node_props(&new_id).unwrap().fill,
+        Some(fill),
+        "the fill landed on the node this batch created"
+    );
+}
+
+#[test]
+fn a_fill_on_a_node_created_in_an_earlier_batch_is_applied() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xA8);
+    let fill = Rgba::opaque(9, 9, 9);
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &new_id,
+                "shape",
+                Some("Badge"),
+                NodeParent::PageRoot {
+                    page: first_page(&session).to_string(),
+                },
+            )],
+        ))
+        .expect("the create applies");
+
+    // A separate batch, so the node exists before the property edit is built.
+    session
+        .apply(&request_now(&session, vec![set_fill(&new_id, Some(fill))]))
+        .expect("the fill applies");
+
+    assert_eq!(session.node_props(&new_id).unwrap().fill, Some(fill));
+}
+
+#[test]
+fn a_property_edit_of_a_node_created_in_the_same_batch_is_refused() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+    let new_id = fresh_id(0xA9);
+
+    // A property edit reads the node's current properties to build the
+    // replacement, and a node created earlier in the same batch has none. The
+    // refusal is explicit rather than a silently dropped fill, and the batch
+    // leaves nothing behind.
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![
+                create(
+                    &new_id,
+                    "shape",
+                    None,
+                    NodeParent::PageRoot {
+                        page: first_page(&session).to_string(),
+                    },
+                ),
+                set_fill(&new_id, Some(Rgba::opaque(1, 1, 1))),
+            ],
+        ))
+        .expect_err("the property edit cannot read a node that does not exist yet");
+
+    assert_eq!(error.code, AppErrorCode::UnknownNode);
+    assert_eq!(error.node.as_deref(), Some(new_id.as_str()));
+    assert_eq!(session.revision().as_u64(), revision);
+    assert!(
+        session
+            .view()
+            .unwrap()
+            .nodes
+            .iter()
+            .all(|node| node.id != new_id),
+        "the whole batch was rolled back"
+    );
+}
+
+#[test]
+fn a_failed_create_in_a_batch_with_a_later_edit_leaves_no_trace() {
+    let mut session = open_sample();
+    let revision = session.revision().as_u64();
+
+    let error = session
+        .apply(&request_now(
+            &session,
+            vec![
+                create(
+                    sample::HEADER,
+                    "shape",
+                    None,
+                    NodeParent::PageRoot {
+                        page: first_page(&session).to_string(),
+                    },
+                ),
+                set_fill(sample::DOT, Some(Rgba::opaque(1, 1, 1))),
+            ],
+        ))
+        .expect_err("the create names a taken identity");
+
+    assert_eq!(error.code, AppErrorCode::CommandRejected);
+    assert_eq!(session.revision().as_u64(), revision);
+    assert!(
+        !session.is_dirty(),
+        "the refused batch changed nothing, including the later edit"
+    );
+    assert_eq!(
+        session.node_props(sample::DOT).unwrap().fill,
+        Some(Rgba::opaque(255, 107, 107)),
+        "the dot keeps its original fill"
+    );
+}
+
+#[test]
+fn a_create_command_crosses_the_wire_in_the_documented_shape() {
+    let request = EditRequest {
+        expected_revision: 2,
+        commands: vec![create(
+            &fresh_id(0xA7),
+            "text",
+            Some("Label"),
+            NodeParent::Child {
+                parent: sample::CARD.to_owned(),
+            },
+        )],
+    };
+    let json = serde_json::to_value(&request).expect("the request serializes");
+
+    let command = &json["commands"][0];
+    assert_eq!(command["kind"], serde_json::json!("create-node"));
+    assert_eq!(command["nodeKind"], serde_json::json!("text"));
+    assert_eq!(command["parent"]["in"], serde_json::json!("child"));
+    assert_eq!(command["parent"]["parent"], serde_json::json!(sample::CARD));
+
+    let parsed: EditRequest = serde_json::from_value(json).expect("the request parses");
+    assert_eq!(parsed, request);
 }
 
 #[test]

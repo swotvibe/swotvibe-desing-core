@@ -18,7 +18,8 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use swotvibe_core::{
-    BatchError, CommandError, HistoryError, NodeId, PageId, Revision, ValidationErrors,
+    BatchError, CommandError, CommandErrorCode, HistoryError, NodeId, PageId, Revision,
+    ValidationErrors,
 };
 use swotvibe_format::{ImportError, JsonError};
 use swotvibe_layout::LayoutError;
@@ -188,9 +189,21 @@ impl fmt::Display for AppError {
 impl std::error::Error for AppError {}
 
 impl From<CommandError> for AppError {
+    /// Maps a kernel command rejection.
+    ///
+    /// The kernel is the single validator: it checks each command against the
+    /// state as the batch applies, so a command may name a node an earlier
+    /// command in the same batch created. This mapping only translates the
+    /// kernel's stable codes into the interface's coarser ones.
     fn from(error: CommandError) -> Self {
+        let code = match error.code {
+            CommandErrorCode::NodeNotFound => AppErrorCode::UnknownNode,
+            CommandErrorCode::PageNotFound => AppErrorCode::UnknownPage,
+            CommandErrorCode::AssetNotFound => AppErrorCode::UnknownNode,
+            _ => AppErrorCode::CommandRejected,
+        };
         Self {
-            code: AppErrorCode::CommandRejected,
+            code,
             message: error.message.clone(),
             node: error.node.map(|node| node.to_string()),
             page: error.page.map(|page| page.to_string()),

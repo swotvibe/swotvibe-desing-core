@@ -152,10 +152,53 @@ pub struct DocumentView {
 /// The variant set is deliberately small: it is the interface's vocabulary, not
 /// the kernel's. A host that needs a richer edit adds a variant here and maps it
 /// to kernel commands, which keeps the mapping in one tested place.
+///
+/// Identities in a *create* command are chosen by the caller and sent on the
+/// wire, so a batch is reproducible and a caller can refer to a node it just
+/// created in the same batch. The service rejects an identity that is already
+/// taken rather than minting a different one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "kebab-case")]
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
 #[non_exhaustive]
 pub enum EditCommand {
+    /// Creates a node and places it in the scene.
+    CreateNode {
+        /// The identity to assign.
+        node: String,
+        /// The node kind's stable name: `frame`, `group`, `shape`, `text`, or
+        /// `image`.
+        ///
+        /// Named `nodeKind` rather than `kind` because the enum's tag already
+        /// owns that key on the wire.
+        node_kind: String,
+        /// An optional human-readable name.
+        name: Option<String>,
+        /// An optional fill colour.
+        ///
+        /// Set here rather than by a following edit because a property edit
+        /// reads the node's current properties, and a node this batch creates
+        /// has none yet. Creating with the properties it should start with is
+        /// both simpler and honest about that order.
+        fill: Option<Rgba>,
+        /// Where the node goes.
+        parent: NodeParent,
+    },
+    /// Removes a node and its whole subtree.
+    DeleteNode {
+        /// The node to remove.
+        node: String,
+    },
+    /// Moves a node to a new parent or position.
+    MoveNode {
+        /// The node to move.
+        node: String,
+        /// The destination.
+        parent: NodeParent,
+    },
     /// Sets or clears a node's name.
     RenameNode {
         /// The node to rename.
@@ -169,6 +212,27 @@ pub enum EditCommand {
         node: String,
         /// The new fill, or `None` to remove it.
         fill: Option<Rgba>,
+    },
+}
+
+/// Where a created or moved node goes.
+///
+/// A page root or a child of a node, with a position expressed relative to the
+/// container rather than as a raw index, so an interface never has to know how
+/// many siblings exist to say "at the end".
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "in", rename_all = "kebab-case", rename_all_fields = "camelCase")]
+#[non_exhaustive]
+pub enum NodeParent {
+    /// As a root of the given page.
+    PageRoot {
+        /// The page.
+        page: String,
+    },
+    /// As the last child of the given node.
+    Child {
+        /// The parent node.
+        parent: String,
     },
 }
 
@@ -260,7 +324,14 @@ pub struct Preview {
     /// Pixels per design unit.
     pub scale: f64,
     /// The encoded PNG.
-    #[serde(skip)]
+    ///
+    /// Serialized as a JSON array of bytes, which is what a Tauri command
+    /// returns for a `Vec<u8>`. That costs roughly three bytes of text per byte
+    /// of image, so it is acceptable for a one-shot preview and wrong for an
+    /// interactive loop; moving it to a binary response
+    /// (`tauri::ipc::Response`) is the documented fix and is tracked as an open
+    /// item. It is **not** skipped: a preview without pixels is a command that
+    /// appears to work and returns nothing.
     pub png: Vec<u8>,
     /// Cases the layout engine interpreted by a documented fallback.
     pub layout_diagnostics: Vec<String>,

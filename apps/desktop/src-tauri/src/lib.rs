@@ -18,6 +18,7 @@ pub mod document;
 use std::path::PathBuf;
 
 use commands::EditorState;
+use tauri::Manager;
 
 /// The window's entry point.
 ///
@@ -36,6 +37,23 @@ pub fn run() {
         // WebView.
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
+        // Closing a window with unsaved edits would discard them, and there is no
+        // undo after the process is gone. The host owns the window, so the host
+        // owns this question.
+        .on_window_event(|window, event| {
+            let tauri::WindowEvent::CloseRequested { api, .. } = event else {
+                return;
+            };
+            // Read the dirty flag into a value rather than testing the lock guard
+            // in place: the guard would otherwise stay held across the dialog.
+            let dirty = window
+                .try_state::<EditorState>()
+                .is_some_and(|state| state.lock_document().is_dirty());
+            if dirty {
+                api.prevent_close();
+                ask_before_closing(window);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::capabilities,
             commands::get_view,
@@ -111,6 +129,35 @@ fn search_upwards(first: &str, second: &str) -> Option<PathBuf> {
     }
 }
 
+/// Asks whether to close a window with unsaved edits, and closes it if so.
+///
+/// The window is kept open until the answer arrives, so a close is a question
+/// rather than a loss. The dialog is the operating system's, which is what a
+/// person expects from a window close, and it needs no permission of its own.
+fn ask_before_closing(window: &tauri::Window) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+
+    let window = window.clone();
+    window
+        .dialog()
+        .message("This document has unsaved changes. Closing the window discards them.")
+        .title("Unsaved changes")
+        .kind(MessageDialogKind::Warning)
+        // The safe answer is the one a stray Enter takes.
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Close anyway".to_owned(),
+            "Keep editing".to_owned(),
+        ))
+        .show(move |close| {
+            if close {
+                // `destroy` rather than `close`: Tauri documents that `close`
+                // emits `CloseRequested` again, which would ask the same question
+                // forever. `destroy` closes without re-emitting.
+                let _ = window.destroy();
+            }
+        });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,7 +193,7 @@ mod tests {
         // The host's start-up path is testable on its own: nothing here needs a
         // webview, which is the point of keeping the service out of Tauri.
         let state = build_state().expect("the pinned fonts should load");
-        let mut session = state.lock_document();
+        let session = state.lock_document();
         let view = session.view().expect("a view is available");
         assert!(view.pages.is_empty(), "a host starts on an empty document");
         assert_eq!(view.revision, 0);

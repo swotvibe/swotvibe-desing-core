@@ -172,6 +172,7 @@ pub fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::state_from_font_directory;
 
     #[test]
     fn a_write_replaces_the_target_and_leaves_no_staging_file() {
@@ -195,7 +196,10 @@ mod tests {
             .map(|entry| entry.file_name().to_string_lossy().into_owned())
             .filter(|name| name.ends_with(".staged"))
             .collect();
-        assert!(leftovers.is_empty(), "staging files are cleaned up: {leftovers:?}");
+        assert!(
+            leftovers.is_empty(),
+            "staging files are cleaned up: {leftovers:?}"
+        );
 
         std::fs::remove_dir_all(&directory).ok();
     }
@@ -204,5 +208,82 @@ mod tests {
     fn a_message_names_the_file_and_not_the_directory() {
         let path = Path::new("/somewhere/private/design.json");
         assert_eq!(file_label(path), "design.json");
+    }
+
+    /// The host's save-then-reopen path, without the dialog.
+    ///
+    /// The dialog is the one part a test cannot drive, so everything behind it is
+    /// driven here: export the bytes, write them the way a save writes them, read
+    /// them back the way an open reads them, and confirm the document that comes
+    /// back carries the edit and the structure. Without this, the acceptance item
+    /// "save to a file and reopen it" would rest on reading the code.
+    #[test]
+    fn a_saved_document_reopens_with_its_edit_intact() {
+        let directory =
+            std::env::temp_dir().join(format!("swotvibe-host-roundtrip-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).expect("the scratch directory should be creatable");
+        let target = directory.join("design.json");
+
+        let fonts = crate::font_directory();
+        let state = state_from_font_directory(&fonts).expect("the pinned fonts should load");
+        let sample = std::fs::read(
+            fonts
+                .parent()
+                .expect("the font directory has a parent")
+                .join("..")
+                .join("tests/fixtures/m0-sample-v2.json"),
+        )
+        .expect("the M0 sample should be readable");
+
+        let header = "018f0000-0000-7000-8000-000000020002";
+        let new_fill = swotvibe_app::Rgba::opaque(200, 30, 90);
+
+        {
+            let mut session = state.lock_document();
+            session
+                .open_json(&sample, Some("m0-sample-v2.json".to_owned()))
+                .expect("the sample opens");
+            let revision = session.revision().as_u64();
+            session
+                .apply(&swotvibe_app::EditRequest {
+                    expected_revision: revision,
+                    commands: vec![swotvibe_app::EditCommand::SetNodeFill {
+                        node: header.to_owned(),
+                        fill: Some(new_fill),
+                    }],
+                })
+                .expect("the edit applies");
+            assert!(session.is_dirty(), "an edit makes the document unsaved");
+
+            let bytes = session.export_bytes().expect("the document exports");
+            write_atomically(&target, &bytes).expect("the write succeeds");
+            session.note_saved().expect("the save is recorded");
+            assert!(!session.is_dirty(), "a written document is saved");
+        }
+
+        // A second session stands in for reopening the file after a restart.
+        let reopened = state_from_font_directory(&fonts).expect("the pinned fonts should load");
+        let bytes = std::fs::read(&target).expect("the written file is readable");
+        let mut session = reopened.lock_document();
+        let view = session
+            .open_json(&bytes, Some("design.json".to_owned()))
+            .expect("the written file opens");
+
+        assert!(!view.dirty, "a freshly opened document is not modified");
+        assert_eq!(view.pages.len(), 1);
+        assert_eq!(
+            session
+                .node_props(header)
+                .expect("the node is present")
+                .fill,
+            Some(new_fill),
+            "the edit survived the round trip through the file system"
+        );
+        assert!(
+            !session.can_undo(),
+            "session history is not part of the file"
+        );
+
+        std::fs::remove_dir_all(&directory).ok();
     }
 }

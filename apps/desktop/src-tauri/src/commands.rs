@@ -151,7 +151,10 @@ pub fn apply(
     state: State<'_, EditorState>,
     request: swotvibe_app::EditRequest,
 ) -> IpcResult<CommitSummary> {
-    state.lock_document().apply(&request).map_err(IpcError::from)
+    state
+        .lock_document()
+        .apply(&request)
+        .map_err(IpcError::from)
 }
 
 /// Undoes the most recent step.
@@ -161,7 +164,10 @@ pub fn apply(
 /// A mapped [`IpcError`], including `history` when there is nothing to undo.
 #[tauri::command]
 pub fn undo(state: State<'_, EditorState>, expected_revision: u64) -> IpcResult<CommitSummary> {
-    state.lock_document().undo(expected_revision).map_err(IpcError::from)
+    state
+        .lock_document()
+        .undo(expected_revision)
+        .map_err(IpcError::from)
 }
 
 /// Redoes the most recently undone step.
@@ -171,7 +177,10 @@ pub fn undo(state: State<'_, EditorState>, expected_revision: u64) -> IpcResult<
 /// A mapped [`IpcError`], including `history` when there is nothing to redo.
 #[tauri::command]
 pub fn redo(state: State<'_, EditorState>, expected_revision: u64) -> IpcResult<CommitSummary> {
-    state.lock_document().redo(expected_revision).map_err(IpcError::from)
+    state
+        .lock_document()
+        .redo(expected_revision)
+        .map_err(IpcError::from)
 }
 
 /// The node's properties on their own.
@@ -181,7 +190,10 @@ pub fn redo(state: State<'_, EditorState>, expected_revision: u64) -> IpcResult<
 /// A mapped [`IpcError`] for an unparsable identity or a node that is absent.
 #[tauri::command]
 pub fn node_props(state: State<'_, EditorState>, node: String) -> IpcResult<PropsView> {
-    state.lock_document().node_props(&node).map_err(IpcError::from)
+    state
+        .lock_document()
+        .node_props(&node)
+        .map_err(IpcError::from)
 }
 
 /// The resolved geometry of one page.
@@ -196,7 +208,10 @@ pub fn layout(
     options: PreviewOptions,
 ) -> IpcResult<LayoutView> {
     let page = parse_page(&page)?;
-    state.lock_document().layout(page, options).map_err(IpcError::from)
+    state
+        .lock_document()
+        .layout(page, options)
+        .map_err(IpcError::from)
 }
 
 /// The topmost node under a point in page units.
@@ -236,7 +251,10 @@ pub fn preview(
     options: PreviewOptions,
 ) -> IpcResult<Preview> {
     let page = parse_page(&page)?;
-    state.lock_document().preview(page, options).map_err(IpcError::from)
+    state
+        .lock_document()
+        .preview(page, options)
+        .map_err(IpcError::from)
 }
 
 /// The bytes a save would write, without marking anything as saved.
@@ -264,9 +282,9 @@ pub fn note_saved(state: State<'_, EditorState>) -> IpcResult<()> {
 }
 
 fn parse_page(value: &str) -> IpcResult<swotvibe_core::PageId> {
-    value.parse().map_err(|error| {
-        IpcError::transport(format!("`{value}` is not a page identity: {error}"))
-    })
+    value
+        .parse()
+        .map_err(|error| IpcError::transport(format!("`{value}` is not a page identity: {error}")))
 }
 
 /// Builds the state a window runs against.

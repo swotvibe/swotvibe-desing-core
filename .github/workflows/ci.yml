@@ -47,6 +47,12 @@ jobs:
       - name: rustfmt
         run: cargo fmt --all --check
 
+      - name: rustfmt (desktop host)
+        # The host is its own workspace, so the check above does not cover it.
+        # Formatting needs no platform library, which is why this can run here
+        # while compiling the host still cannot.
+        run: cargo fmt --check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 

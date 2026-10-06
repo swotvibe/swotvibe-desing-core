@@ -164,8 +164,12 @@ npm run dev          # خادم تطوير على 127.0.0.1:5173
 ```sh
 cargo build               # ينتج swotvibe-design.exe
 cargo test --lib          # اختبارات المضيف وبدء التشغيل
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
 cargo run --bin swotvibe-design
 ```
+
+المضيف workspace منفصل، لذا لا يغطيه `cargo fmt --all` ولا `cargo clippy --workspace` من جذر المستودع. يُشغَّل فحص التنسيق له في CI على الأنظمة الثلاثة لأنه لا يحتاج مكتبات منصة، بينما يبقى بناؤه خارج المصفوفة حتى قرار دعم المنصات.
 
 المضيف يقرأ الخطوط المثبتة من `assets/fonts` بالبحث من مجلد الحزمة إلى أعلى؛ ويقبل `SWOTVIBE_FONT_DIR` لتجاوز ذلك، وهو ما تستخدمه حزمة موزعة. لا يقرأ أي خط من النظام، لأن ذلك يجعل القياس يعتمد على الجهاز.
 

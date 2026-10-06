@@ -59,6 +59,12 @@ reported as passing there.
 | `swotvibe-render` | Scene extraction and rendering adapter | Implemented on vello_cpu, temporary |
 | `swotvibe-app` | Editor session: opens bytes, applies commands, undo/redo, views, layout and preview requests, typed errors | Implemented and tested; no window, no file system, no Tauri |
 
+Every pinned dependency — version, license, MSRV, enabled features, and the
+official source it was verified against — is recorded in the
+[tooling inventory](./docs/architecture/tooling-inventory.md). The lockfiles are
+the source of truth; that document explains what each tool owns and why it was
+chosen.
+
 The static Arabic editor sample exercises a 1440×900 screen, mixed Arabic/Latin
 text, seven SVG icons, a generated PNG product image, and nested scene/layer
 groups. Its fixture, generator, test, and review state are documented in
@@ -146,6 +152,7 @@ cargo deny check licenses advisories bans
 - [Architecture decisions](./docs/adr/README.md)
 - [Product requirements status](./docs/product/README.md)
 - [Pinned fonts and their provenance](./assets/fonts/README.md)
+- [Tooling inventory: pinned versions, licenses, MSRV](./docs/architecture/tooling-inventory.md)
 - [Reference images and their comparison rules](./tests/golden/README.md)
 
 GitHub Actions checks Windows, Linux, and macOS on pushes and pull requests,

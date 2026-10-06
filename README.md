@@ -49,6 +49,7 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 | `swotvibe-layout` | Product layout adapter | Implemented on Taffy, temporary |
 | `swotvibe-text` | Text measurement and shaping adapter | Implemented on Parley and Skrifa, temporary |
 | `swotvibe-render` | Scene extraction and rendering adapter | Implemented on vello_cpu, temporary |
+| `swotvibe-app` | Editor session: opens bytes, applies commands, undo/redo, views, layout and preview requests, typed errors | Implemented and tested; no window, no file system, no Tauri |
 
 The static Arabic editor sample exercises a 1440×900 screen, mixed Arabic/Latin
 text, seven SVG icons, a generated PNG product image, and nested scene/layer
@@ -56,6 +57,33 @@ groups. Its fixture, generator, test, and review state are documented in
 [`tests/fixtures/README.md`](./tests/fixtures/README.md) and
 [`tests/golden/README.md`](./tests/golden/README.md). Its PNG is a technical
 reference, not an approved product design.
+
+## Desktop shell and editor interface
+
+`apps/desktop` holds the M1 editing loop:
+
+| Path | What it is | State |
+|---|---|---|
+| `src-tauri` | Tauri 2 host: window, native file dialogs, and thin IPC commands over `swotvibe-app` | Builds and runs on Windows; acceptance gate partial |
+| `ui` | Vue 3 + Vite interface, TypeScript `6.0.3` pinned | Builds; 17 component tests pass |
+
+The host is its own Cargo workspace on purpose: its platform libraries are not
+available on a headless CI runner, and including it in the repository workspace
+would make `cargo test --workspace` machine-specific.
+
+The interface never receives a file path, and no component talks to a service
+directly — a shell injects one. In a plain browser the same interface runs against
+a sample service so it can be reviewed without a host; the shell recognises the
+host by the globals Tauri injects.
+
+TypeScript is pinned at `6.0.3` because TypeScript 7 ships no programmatic API
+and the published Vue tooling still needs the 6.x line for `.vue` type-checking.
+A 7.x upgrade is a gated follow-up, not a promised version.
+
+The plan, the acceptance gates, and what is still unproven are in
+[`docs/architecture/ui-and-m1-plan.md`](./docs/architecture/ui-and-m1-plan.md) and
+[ADR-0009](./docs/adr/0009-ui-and-bridge-boundary.md). This does not commit the
+product to a desktop launch.
 
 Adapters and tools depend on `core`; `core` does not depend on them. The text
 and layout crates are the only ones that know their backend's types, and those

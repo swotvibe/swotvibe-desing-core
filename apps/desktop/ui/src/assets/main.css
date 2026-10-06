@@ -1,0 +1,71 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens for the editor shell.
+ *
+ * The reference layout is a three-column workspace on a dark backdrop: a tool
+ * rail, a document/layer panel, a canvas, and an inspector, with a floating
+ * tool palette over the canvas. Colours are declared once here so a panel and
+ * the surface behind it cannot drift apart.
+ */
+@theme {
+  --color-shell-950: oklch(0.16 0.006 265);
+  --color-shell-900: oklch(0.2 0.007 265);
+  --color-shell-850: oklch(0.235 0.007 265);
+  --color-shell-800: oklch(0.27 0.008 265);
+  --color-shell-700: oklch(0.34 0.009 265);
+  --color-shell-600: oklch(0.44 0.01 265);
+
+  --color-ink-100: oklch(0.97 0.002 265);
+  --color-ink-300: oklch(0.81 0.004 265);
+  --color-ink-500: oklch(0.66 0.006 265);
+  --color-ink-700: oklch(0.52 0.008 265);
+
+  --color-accent-400: oklch(0.72 0.15 258);
+  --color-accent-500: oklch(0.62 0.19 258);
+  --color-accent-600: oklch(0.54 0.2 258);
+
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-panel: 0.75rem;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-shell-950);
+  color: var(--color-ink-100);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  /* A design tool is a fixed workspace: the page itself scrolls and zooms, the
+     shell around it does not. */
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The canvas backdrop uses the conventional transparency checker, drawn as a
+   repeating gradient so it stays crisp at any zoom without a bitmap. */
+@utility canvas-checker {
+  background-color: var(--color-shell-900);
+  background-image:
+    linear-gradient(45deg, var(--color-shell-850) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-shell-850) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-shell-850) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-shell-850) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+/* A hairline that reads on dark surfaces without a full pixel of contrast. */
+@utility hairline {
+  border-color: color-mix(in oklab, var(--color-ink-100) 10%, transparent);
+}

@@ -883,6 +883,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "swotvibe-app"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "swotvibe-core",
+ "swotvibe-format",
+ "swotvibe-layout",
+ "swotvibe-render",
+ "swotvibe-text",
+ "thiserror",
+]
+
+[[package]]
 name = "swotvibe-core"
 version = "0.1.0"
 dependencies = [

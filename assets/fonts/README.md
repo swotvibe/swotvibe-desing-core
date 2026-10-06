@@ -27,6 +27,32 @@ Latin paragraphs. Both families permit redistribution under SIL OFL 1.1.
 - Noto Sans Arabic is from Google Fonts `ofl/notosansarabic`. Its upstream
   release is 2.012 and the family metadata records OFL licensing.
 
-The source commit, file hash, and license hash together identify the exact test
-inputs. Do not replace a font or silently regenerate a golden when any of them
-changes; update the fingerprints and obtain a fresh visual review.
+## Unused faces kept in the repository
+
+These two files are **not read by any test or fixture**. They are recorded here
+so that a committed asset has a stated source and license, and so that nobody
+assumes they influence a measurement. The upstream release commit has not been
+verified against Google Fonts, which is part of why they are not reference
+inputs: a face used by a reference render has to be pinned to a verifiable
+revision.
+
+| File | Family | Version | Size | SHA-256 |
+| --- | --- | --- | ---: | --- |
+| `noto-latin/NotoSans-Regular.ttf` | Noto Sans | 2.015 | 41,508 B | `4D5A883E71623B58390D3E1CDDF78EB84F0CA1F43D0CC3974DE1B284AD8FACFC` |
+| `noto-naskh-arabic/NotoNaskhArabic-Regular.ttf` | Noto Naskh Arabic | 2.021 | 199,512 B | `706B4580C025F6C75EC1C06013E17F00A23EC1780091B77A5A5B339469BDA94D` |
+
+Both embed an SIL OFL 1.1 notice, and the license text is stored beside each file:
+
+| File | Size | SHA-256 |
+| --- | ---: | --- |
+| `noto-latin/OFL.txt` | 4,396 B | `CEE9892F9F0CC8FE882C9E9537EE6A89621D86EE7CEAF70B02E2B2B1C25C061A` |
+| `noto-naskh-arabic/OFL.txt` | 4,382 B | `A7A5A25EB188BF1CD96982030D53E23C33485C69B1044A562254226857EE13AF` |
+
+They are not substitutes for the pinned faces in `inter/` and `noto-sans-arabic/`:
+the families differ, and even where a family matches, a different revision moves
+every measurement.
+
+Either pin them the way the table at the top of this file pins the reference
+faces — source commit, verified hash, and a test that registers them — or remove
+the directories. Until then they stay unused.
+

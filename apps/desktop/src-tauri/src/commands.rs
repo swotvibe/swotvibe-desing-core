@@ -108,7 +108,7 @@ impl IpcError {
 }
 
 /// The result type every command returns.
-type IpcResult<T> = Result<T, IpcError>;
+pub type IpcResult<T> = Result<T, IpcError>;
 
 /// The open document, with no session state in it.
 ///

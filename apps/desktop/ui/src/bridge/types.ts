@@ -223,6 +223,15 @@ export interface EditorBridge {
   openDocument?(): Promise<DocumentView | null>
 
   /**
+   * Opens the committed M0 sample, when the build can see it.
+   *
+   * A development affordance: it gives a first run something to open without
+   * hunting for a file. A packaged build answers an error saying it has none,
+   * rather than pretending the feature is absent.
+   */
+  openSample?(): Promise<DocumentView>
+
+  /**
    * Saves through the host's own picker, returning the file name it wrote.
    *
    * Optional for the same reason as [`openDocument`]. Resolves to `null` when the

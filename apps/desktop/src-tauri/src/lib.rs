@@ -48,6 +48,7 @@ pub fn run() {
             commands::export_bytes,
             commands::note_saved,
             document::open_document,
+            document::open_sample,
             document::save_document,
         ])
         .run(tauri::generate_context!())
@@ -76,14 +77,35 @@ pub fn font_directory() -> PathBuf {
     if let Some(from_environment) = std::env::var_os("SWOTVIBE_FONT_DIR") {
         return PathBuf::from(from_environment);
     }
+    search_upwards("assets", "fonts").unwrap_or_else(|| PathBuf::from("assets/fonts"))
+}
+
+/// The committed M0 sample, when this build can see the repository it came from.
+///
+/// This is a development affordance, not a product feature: it gives a first run
+/// something to open without hunting for a file. A packaged build has no
+/// repository, so it answers `None` and the interface offers nothing.
+#[must_use]
+pub fn sample_fixture_path() -> Option<PathBuf> {
+    if let Some(from_environment) = std::env::var_os("SWOTVIBE_SAMPLE_PATH") {
+        let path = PathBuf::from(from_environment);
+        return path.is_file().then_some(path);
+    }
+    search_upwards("tests", "fixtures")
+        .map(|directory| directory.join("m0-sample-v2.json"))
+        .filter(|path| path.is_file())
+}
+
+/// Walks up from the crate directory looking for `<root>/<first>/<second>`.
+fn search_upwards(first: &str, second: &str) -> Option<PathBuf> {
     let mut directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     loop {
-        let candidate = directory.join("assets").join("fonts");
+        let candidate = directory.join(first).join(second);
         if candidate.is_dir() {
-            return candidate;
+            return Some(candidate);
         }
         if !directory.pop() {
-            return PathBuf::from("assets/fonts");
+            return None;
         }
     }
 }
@@ -107,6 +129,15 @@ mod tests {
             "expected the pinned Arabic face in {}",
             directory.display()
         );
+    }
+
+    #[test]
+    fn the_repository_sample_is_found_from_the_crate_directory() {
+        // A first run has something to open only when this resolves, so a build
+        // that cannot see it must say so rather than offer an action that fails.
+        let path = sample_fixture_path().expect("the sample should be found");
+        assert!(path.is_file(), "{} should exist", path.display());
+        assert_eq!(path.file_name().unwrap(), "m0-sample-v2.json");
     }
 
     #[test]

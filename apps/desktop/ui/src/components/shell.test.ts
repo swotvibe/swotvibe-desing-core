@@ -342,6 +342,51 @@ describe('opening and saving', () => {
   })
 })
 
+describe('a document with no pages', () => {
+  it('offers a way forward instead of a blank canvas', async () => {
+    const bridge = new SampleEditorBridge()
+    bridge.empty()
+
+    const shell = mount(App as never, {
+      global: { provide: { [editorKey as symbol]: bridge } },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    expect(shell.find('[data-test="empty-state"]').exists()).toBe(true)
+    expect(shell.find('[data-test="stage"]').exists()).toBe(false)
+    expect(shell.text()).toContain('No document is open')
+
+    // The sample control is the one a first run can use without a file.
+    const sample = shell
+      .findAll('button')
+      .find((button) => button.text().includes('Open the sample'))
+    expect(sample).toBeDefined()
+
+    await sample!.trigger('click')
+    await flushPromises()
+
+    expect(shell.find('[data-test="stage"]').exists()).toBe(true)
+    expect(shell.findAll('[role="treeitem"]')).toHaveLength(5)
+  })
+
+  it('does not offer a file it cannot read', async () => {
+    const bridge = new SampleEditorBridge()
+    bridge.empty()
+
+    const shell = mount(App as never, {
+      global: { provide: { [editorKey as symbol]: bridge } },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const open = shell
+      .findAll('button')
+      .find((button) => button.text().includes('Open a file'))
+    expect(open?.attributes('disabled')).toBeDefined()
+  })
+})
+
 describe('the tool palette', () => {
   it('enables only the tools that are wired to the service', async () => {
     const { shell } = await mountShell()

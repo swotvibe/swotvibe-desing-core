@@ -28,7 +28,7 @@ use swotvibe_app::{AppError, AppErrorCode, DocumentView};
 use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::commands::{EditorState, IpcError};
+use crate::commands::{EditorState, IpcError, IpcResult};
 
 /// The filters the native dialogs offer.
 ///
@@ -72,6 +72,40 @@ pub async fn open_document(
         .map(|name| name.to_string_lossy().into_owned());
     let view = state.lock_document().open_json(&bytes, display_name)?;
     Ok(Some(view))
+}
+
+/// Opens the committed M0 sample.
+///
+/// A development affordance: the first run of a build made from this repository
+/// has something to open, so the editing loop can be tried without first finding
+/// a file. A packaged build has no repository, so the command returns an error
+/// saying so rather than a silent no-op.
+///
+/// # Errors
+///
+/// An [`IpcError`] when this build cannot see the sample, or when the sample
+/// cannot be read or opened.
+#[tauri::command]
+pub fn open_sample(state: State<'_, EditorState>) -> IpcResult<DocumentView> {
+    let path = crate::sample_fixture_path().ok_or_else(|| {
+        AppError::new(
+            AppErrorCode::DocumentRead,
+            "this build has no sample document; use Open to choose a file",
+        )
+    })?;
+    let bytes = std::fs::read(&path).map_err(|error| {
+        AppError::new(
+            AppErrorCode::DocumentRead,
+            format!("cannot read {}: {error}", file_label(&path)),
+        )
+    })?;
+    let display_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned());
+    state
+        .lock_document()
+        .open_json(&bytes, display_name)
+        .map_err(IpcError::from)
 }
 
 /// Asks for a destination and writes the document there.
@@ -227,11 +261,7 @@ mod tests {
         let fonts = crate::font_directory();
         let state = state_from_font_directory(&fonts).expect("the pinned fonts should load");
         let sample = std::fs::read(
-            fonts
-                .parent()
-                .expect("the font directory has a parent")
-                .join("..")
-                .join("tests/fixtures/m0-sample-v2.json"),
+            crate::sample_fixture_path().expect("the repository sample should be found"),
         )
         .expect("the M0 sample should be readable");
 

@@ -69,7 +69,9 @@ export interface EditorSession {
   redo: () => Promise<void>
   save: () => Promise<void>
   open: () => Promise<void>
+  openSample: () => Promise<void>
   canOpen: ComputedRef<boolean>
+  canOpenSample: ComputedRef<boolean>
   setZoom: (next: number) => void
   clearFailure: () => void
 }
@@ -283,6 +285,34 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   /** Whether this build can ask a host for a file. */
   const canOpen = computed(() => bridge.openDocument !== undefined)
 
+  /** Whether this build can open the committed sample. */
+  const canOpenSample = computed(() => bridge.openSample !== undefined)
+
+  async function openSample(): Promise<void> {
+    if (!bridge.openSample) {
+      report(
+        new AppError({
+          code: 'document-read',
+          message: 'This build has no sample document to open.',
+        }),
+        'this build has no sample document',
+      )
+      return
+    }
+    busy.value = true
+    try {
+      const opened = await bridge.openSample()
+      selectedId.value = null
+      await refresh()
+      clearFailure()
+      status.value = `Opened ${opened.displayName ?? 'the sample'}`
+    } catch (cause) {
+      report(cause, 'the sample could not be opened')
+    } finally {
+      busy.value = false
+    }
+  }
+
   async function open(): Promise<void> {
     if (!bridge.openDocument) {
       report(
@@ -344,7 +374,9 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     redo,
     save,
     open,
+    openSample,
     canOpen,
+    canOpenSample,
     setZoom,
     clearFailure,
   }

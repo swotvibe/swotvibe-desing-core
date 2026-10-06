@@ -173,11 +173,17 @@ export class SampleEditorBridge {
       children: node.children,
       props: node.props,
     }))
+    // A document with no roots has no page to show, which is what an empty
+    // document is. Reporting a page with no children would be a second meaning
+    // for "empty".
+    const roots = this.nodes
+      .filter((node) => node.parent === null)
+      .map((node) => node.id)
     return {
       revision: this.revision,
       dirty: this.dirty,
-      displayName: 'Preview',
-      pages: [{ id: PAGE_ID, name: 'Preview', roots: [this.nodes[0]!.id] }],
+      displayName: roots.length > 0 ? 'Preview' : null,
+      pages: roots.length > 0 ? [{ id: PAGE_ID, name: 'Preview', roots }] : [],
       nodes,
     }
   }
@@ -326,6 +332,20 @@ export class SampleEditorBridge {
     return 'design.json'
   }
 
+  /**
+   * Reloads the sample this service was seeded with.
+   *
+   * The browser build has no file to open, so this is the honest equivalent: it
+   * restores the committed sample rather than pretending to read a document.
+   */
+  async openSample(): Promise<DocumentView> {
+    this.nodes = sampleNodes()
+    this.revision += 1
+    this.dirty = false
+    this.pristine = JSON.stringify(this.nodes)
+    return this.getView()
+  }
+
   async openBytes(): Promise<DocumentView> {
     const error = new Error('this build has no file reader; the desktop host supplies one')
     Object.assign(error, { code: 'document-read' })
@@ -335,5 +355,19 @@ export class SampleEditorBridge {
   /** The page the sample service will answer for. */
   get pageId(): string {
     return PAGE_ID
+  }
+
+  /**
+   * Empties the document, so the shell's first-run path can be tested.
+   *
+   * The desktop host starts with no document at all; the browser build starts
+   * with the sample so the interface can be reviewed. This is how a test reaches
+   * the state a real first run is in.
+   */
+  empty(): void {
+    this.nodes = []
+    this.revision += 1
+    this.pristine = JSON.stringify(this.nodes)
+    this.dirty = false
   }
 }

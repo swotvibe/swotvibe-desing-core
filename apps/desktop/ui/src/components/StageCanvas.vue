@@ -68,10 +68,46 @@ function radiusOf(id: string): string {
 
     <div class="canvas-checker flex min-h-0 flex-1 items-start justify-center overflow-auto p-8">
       <!--
+        An empty document has nothing to click, so the canvas says what to do
+        instead of showing a blank page that looks like a failure.
+      -->
+      <div
+        v-if="boxes.length === 0"
+        class="flex max-w-sm flex-col items-center gap-3 self-center text-center"
+        data-test="empty-state"
+      >
+        <p class="text-[13px] text-ink-300">No document is open.</p>
+        <p class="text-[11px] text-ink-500">
+          Open a file, or start from the sample the reference tests use.
+        </p>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="rounded-md bg-accent-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-accent-500 disabled:opacity-50"
+            :disabled="!editor.canOpen.value || editor.busy.value"
+            :title="editor.canOpen.value ? 'Open a document' : 'This build cannot read files'"
+            @click="editor.open()"
+          >
+            Open a file
+          </button>
+          <button
+            v-if="editor.canOpenSample.value"
+            type="button"
+            class="rounded-md border px-3 py-1.5 text-[12px] text-ink-100 hover:bg-shell-850 disabled:opacity-50 hairline"
+            :disabled="editor.busy.value"
+            @click="editor.openSample()"
+          >
+            Open the sample
+          </button>
+        </div>
+      </div>
+
+      <!--
         The stage is the artboard. Its size comes from the layout result, so a
         document whose content overflows its requested page grows here too.
       -->
       <div
+        v-else
         ref="stage"
         data-test="stage"
         class="relative shrink-0 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.45)]"

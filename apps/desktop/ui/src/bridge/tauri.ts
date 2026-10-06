@@ -37,6 +37,7 @@ export const COMMANDS = {
   getView: 'get_view',
   openBytes: 'open_bytes',
   openDocument: 'open_document',
+  openSample: 'open_sample',
   saveDocument: 'save_document',
   apply: 'apply',
   undo: 'undo',
@@ -153,6 +154,11 @@ export class TauriEditorBridge implements EditorBridge {
   /** Saves through the host's dialog and returns the file name it wrote. */
   saveDocument(): Promise<string | null> {
     return call<string | null>(COMMANDS.saveDocument)
+  }
+
+  /** Opens the committed sample, for a first run. */
+  openSample(): Promise<DocumentView> {
+    return call<DocumentView>(COMMANDS.openSample)
   }
 }
 

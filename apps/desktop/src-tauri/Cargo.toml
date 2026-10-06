@@ -27,6 +27,16 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "swotvibe-design"
 path = "src/main.rs"
 
+[features]
+# Without this feature the host is compiled with Tauri's `dev` cfg and loads
+# `build.devUrl` — the development server — even in a release build. Enabling it
+# is what makes a binary serve the interface embedded from `ui/dist`, which is
+# what a standalone build has to do.
+#
+# It is not a default feature on purpose: `tauri dev` relies on the dev cfg to
+# point at the Vite server, and defaulting this on would silently take that away.
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

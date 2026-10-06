@@ -14,7 +14,9 @@ const editor = useEditorSession()
         class="flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-shell-900"
         :title="editor.view.value?.displayName ?? 'Untitled'"
       >
-        <span class="truncate font-medium">{{ editor.view.value?.displayName ?? 'Untitled' }}</span>
+        <span class="truncate font-medium">{{
+          editor.view.value?.displayName ?? 'Untitled'
+        }}</span>
         <ChevronDown class="size-3.5 shrink-0 text-ink-500" aria-hidden="true" />
       </button>
 

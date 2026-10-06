@@ -171,6 +171,14 @@ function selectLayer(shell: VueWrapper, name: string): Promise<void> {
   return row.find('button:not([aria-label])').trigger('click')
 }
 
+/** Commits a fill through the inspector field, as the panel does. */
+async function editorEditFill(shell: VueWrapper, hex: string): Promise<void> {
+  const field = shell.find('input[aria-label="Fill hex value"]')
+  await field.setValue(hex)
+  await flushPromises()
+  await flushPromises()
+}
+
 describe('the shell', () => {
   it('renders the workspace from the service, not from a local copy', async () => {
     const { shell } = await mountShell()
@@ -358,6 +366,13 @@ describe('opening and saving', () => {
   })
 })
 
+/** Drains pending microtasks and timers until the shell has settled. */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 4; i += 1) {
+    await flushPromises()
+  }
+}
+
 describe('a document with no pages', () => {
   it('offers a way forward instead of a blank canvas', async () => {
     const bridge = new SampleEditorBridge()
@@ -380,7 +395,9 @@ describe('a document with no pages', () => {
     expect(sample).toBeDefined()
 
     await sample!.trigger('click')
-    await flushPromises()
+    // Opening runs an async action behind a synchronous guard, so the click
+    // returns before the document has been replaced.
+    await settle()
 
     expect(shell.find('[data-test="stage"]').exists()).toBe(true)
     expect(shell.findAll('[role="treeitem"]')).toHaveLength(5)
@@ -631,6 +648,127 @@ describe('editing geometry', () => {
     // The schema has no opacity, so the panel says so rather than showing a
     // value that nothing can change.
     expect(shell.text()).toContain('Not in the schema yet')
+  })
+})
+
+describe('losing unsaved work', () => {
+  /**
+   * Replaces the document through the shell's own session.
+   *
+   * Driven directly rather than through a button, because the control that
+   * replaces a document differs by build — a file picker on the desktop, the
+   * sample in the browser — while the guard behind it is the same code and is
+   * what this suite is about. What the *buttons* do about dirty state is checked
+   * separately, above.
+   */
+  function shellEditor(shell: VueWrapper) {
+    return (shell.vm as unknown as { editor: ReturnType<typeof createEditorSession> }).editor
+  }
+
+  it('asks before replacing a document with unsaved edits', async () => {
+    const { shell, bridge } = await mountShell()
+
+    // Edit something, so the document differs from what it would write.
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+    await editorEditFill(shell, '#ff0000')
+    expect((await bridge.getView()).dirty).toBe(true)
+
+    // Replacing the document would discard the edit and the undo history, so the
+    // question comes first and nothing has happened yet.
+    shellEditor(shell).openSample()
+    await flushPromises()
+
+    const dialog = shell.find('[data-test="confirmation"]')
+    expect(dialog.exists()).toBe(true)
+    expect(dialog.text()).toContain('Unsaved changes')
+    expect(dialog.text()).toContain('undo history')
+  })
+
+  it('keeps the document when the question is declined', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+    await editorEditFill(shell, '#00ff00')
+    const before = await bridge.getView()
+
+    shellEditor(shell).openSample()
+    await flushPromises()
+    await shell.find('[data-test="confirm-cancel"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(false)
+    const after = await bridge.getView()
+    expect(after).toEqual(before)
+    expect(after.dirty).toBe(true)
+    expect(after.nodes.find((node) => node.id === HEADER)?.props.fill).toEqual({
+      r: 0,
+      g: 255,
+      b: 0,
+      a: 255,
+    })
+  })
+
+
+  it('proceeds when the question is accepted', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+    await editorEditFill(shell, '#0000ff')
+    expect((await bridge.getView()).dirty).toBe(true)
+
+    shellEditor(shell).openSample()
+    await flushPromises()
+    await shell.find('[data-test="confirm-accept"]').trigger('click')
+    await settle()
+
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(false)
+
+    // Accepting replaced the document with the pristine sample, so the edit is
+    // gone and the document is clean again.
+    const after = await bridge.getView()
+    expect(after.dirty).toBe(false)
+    expect(after.nodes.find((node) => node.id === HEADER)?.props.fill).toEqual({
+      r: 76,
+      g: 110,
+      b: 245,
+      a: 255,
+    })
+  })
+
+  it('does not ask when there is nothing to lose', async () => {
+    const { shell } = await mountShell()
+
+    // A freshly opened document matches what it would write, so replacing it
+    // costs nothing and a question would only be noise.
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(false)
+    shellEditor(shell).openSample()
+    await flushPromises()
+
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(false)
+  })
+
+  it('takes Escape as the safe answer', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await selectLayer(shell, 'Dot')
+    await flushPromises()
+    await editorEditFill(shell, '#123456')
+    expect((await bridge.getView()).dirty).toBe(true)
+
+    shellEditor(shell).openSample()
+    await flushPromises()
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(true)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+
+    expect(shell.find('[data-test="confirmation"]').exists()).toBe(false)
+    // Escape declines, so the edit survives.
+    expect((await bridge.getView()).dirty).toBe(true)
   })
 })
 

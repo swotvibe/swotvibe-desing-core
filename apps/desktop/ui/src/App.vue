@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 
 import BottomToolbar from '@/components/BottomToolbar.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DocumentHeader from '@/components/DocumentHeader.vue'
 import LeftSidebar from '@/components/LeftSidebar.vue'
 import RightInspector from '@/components/RightInspector.vue'
@@ -55,6 +56,13 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
 })
+
+/*
+ * The session is exposed so a test can drive the shell's own state — the same
+ * object the panels inject — instead of reaching past it or rebuilding it. It
+ * changes nothing at run time: a root component has no parent to consume it.
+ */
+defineExpose({ editor })
 </script>
 
 <template>
@@ -78,4 +86,7 @@ onBeforeUnmount(() => {
 
     <RightInspector class="border-l hairline" />
   </div>
+
+  <!-- The question sits above everything, including the canvas. -->
+  <ConfirmDialog />
 </template>

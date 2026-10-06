@@ -37,6 +37,23 @@ export interface EditorFailure {
   message: string
 }
 
+/**
+ * A question the interface must answer before an action can proceed.
+ *
+ * Some actions destroy work — replacing an open document, closing the window —
+ * and a design tool that discards edits without asking is worse than one that
+ * lacks a feature. The question is queued here rather than blocking, so the
+ * component that asked stays a plain function and the dialog stays a component.
+ */
+export interface PendingConfirmation {
+  /** What is about to happen, in one sentence. */
+  message: string
+  /** The label of the button that proceeds. */
+  confirmLabel: string
+  /** Runs when the person agrees. */
+  onConfirm: () => void | Promise<void>
+}
+
 type EditCommands = Parameters<EditorBridge['apply']>[0]['commands']
 
 /**
@@ -83,8 +100,11 @@ export interface EditorSession {
   undo: () => Promise<void>
   redo: () => Promise<void>
   save: () => Promise<void>
-  open: () => Promise<void>
-  openSample: () => Promise<void>
+  open: () => void
+  openSample: () => void
+  confirmation: Ref<PendingConfirmation | null>
+  awaitingConfirmation: ComputedRef<boolean>
+  resolveConfirmation: (accept: boolean) => void
   createNode: (kind: string, name?: string) => Promise<void>
   deleteSelected: () => Promise<void>
   capabilities: Ref<Capabilities | null>
@@ -106,6 +126,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   const busy = ref(false)
   const failure = ref<EditorFailure | null>(null)
   const status = ref('Ready')
+  const confirmation = ref<PendingConfirmation | null>(null)
 
   const nodesById = computed(() => {
     const map = new Map<string, NodeView>()
@@ -424,8 +445,47 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     await edit([{ kind: 'delete-node', node: id }])
   }
 
-  async function openSample(): Promise<void> {
-    if (!bridge.openSample) {
+  /**
+   * Runs an action that replaces the open document, asking first when there is
+   * unsaved work.
+   *
+   * Replacing a document discards the undo timeline as well as the edits, so
+   * there is no way back from it. The question is asked before anything is read
+   * or written, and nothing happens if it is declined.
+   */
+  function guardUnsaved(message: string, confirmLabel: string, action: () => void | Promise<void>): void {
+    if (!dirty.value) {
+      void action()
+      return
+    }
+    confirmation.value = {
+      message,
+      confirmLabel,
+      onConfirm: async () => {
+        confirmation.value = null
+        await action()
+      },
+    }
+  }
+
+  /** Whether a question is waiting for an answer. */
+  const awaitingConfirmation = computed(() => confirmation.value !== null)
+
+  function resolveConfirmation(accept: boolean): void {
+    const pending = confirmation.value
+    confirmation.value = null
+    if (accept && pending) {
+      void pending.onConfirm()
+    } else {
+      status.value = 'Cancelled'
+    }
+  }
+
+  function openSampleInternal(): void {
+    // Bound to its receiver on purpose: a method taken off its object and called
+    // bare loses `this`, and this one assigns to the service's own state.
+    const openSampleFn = bridge.openSample?.bind(bridge)
+    if (!openSampleFn) {
       report(
         new AppError({
           code: 'document-read',
@@ -436,21 +496,34 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
       return
     }
     busy.value = true
-    try {
-      const opened = await bridge.openSample()
-      selectedId.value = null
-      await refresh()
-      clearFailure()
-      status.value = `Opened ${opened.displayName ?? 'the sample'}`
-    } catch (cause) {
-      report(cause, 'the sample could not be opened')
-    } finally {
-      busy.value = false
-    }
+    void (async () => {
+      try {
+        const opened = await openSampleFn()
+        selectedId.value = null
+        await refresh()
+        clearFailure()
+        status.value = `Opened ${opened.displayName ?? 'the sample'}`
+      } catch (cause) {
+        report(cause, 'the sample could not be opened')
+      } finally {
+        busy.value = false
+      }
+    })()
   }
 
-  async function open(): Promise<void> {
-    if (!bridge.openDocument) {
+  function openSample(): void {
+    guardUnsaved(
+      'Opening the sample replaces the open document and discards its undo history.',
+      'Discard and open',
+      openSampleInternal,
+    )
+  }
+
+  function openInternal(): void {
+    // Bound for the same reason as `openSampleInternal`: a detached method loses
+    // its receiver, and the service methods write to the service.
+    const openDocumentFn = bridge.openDocument?.bind(bridge)
+    if (!openDocumentFn) {
       report(
         new AppError({
           code: 'document-read',
@@ -461,23 +534,34 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
       return
     }
     busy.value = true
-    try {
-      const opened = await bridge.openDocument()
-      if (opened === null) {
-        status.value = 'Open cancelled'
-        return
+    void (async () => {
+      try {
+        const opened = await openDocumentFn()
+        if (opened === null) {
+          // Cancelling a picker is an answer, not a failure.
+          status.value = 'Open cancelled'
+          return
+        }
+        // A newly opened document has no selection: the old one names a node the
+        // new document does not have.
+        selectedId.value = null
+        await refresh()
+        clearFailure()
+        status.value = `Opened ${opened.displayName ?? 'document'}`
+      } catch (cause) {
+        report(cause, 'the document could not be opened')
+      } finally {
+        busy.value = false
       }
-      // A newly opened document has no selection, because the old one names a
-      // node that the new document does not have.
-      selectedId.value = null
-      await refresh()
-      clearFailure()
-      status.value = `Opened ${opened.displayName ?? 'document'}`
-    } catch (cause) {
-      report(cause, 'the document could not be opened')
-    } finally {
-      busy.value = false
-    }
+    })()
+  }
+
+  function open(): void {
+    guardUnsaved(
+      'Opening a document replaces the current one and discards its undo history.',
+      'Discard and open',
+      openInternal,
+    )
   }
 
   function setZoom(next: number): void {
@@ -514,6 +598,9 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     save,
     open,
     openSample,
+    confirmation,
+    awaitingConfirmation,
+    resolveConfirmation,
     createNode,
     deleteSelected,
     capabilities,

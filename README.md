@@ -29,9 +29,9 @@ pass through real adapters rather than selected.
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
 `unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations. Cross-platform CI
-passed on commit `fc83f67` with both M0 slices, including the Arabic editor
+passed on commit `c224926` with both M0 slices, including the Arabic editor
 sample, on the Windows, Linux, and macOS matrix
-([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37351705752)).
+([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37393874233)).
 Linux external ZIP readers and the 500,000-mutation fuzz run passed on `caff203`
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
 ZIP64 public-format readiness remains open until real product files establish

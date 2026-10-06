@@ -37,6 +37,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
+            commands::capabilities,
             commands::get_view,
             commands::apply,
             commands::undo,

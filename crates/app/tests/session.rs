@@ -633,6 +633,117 @@ fn an_edit_is_visible_in_the_next_preview() {
 }
 
 #[test]
+fn a_created_text_node_names_a_registered_family() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xB1);
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &new_id,
+                "text",
+                Some("Caption"),
+                NodeParent::PageRoot {
+                    page: first_page(&session).to_string(),
+                },
+            )],
+        ))
+        .expect("the text node is created");
+
+    let props = session.node_props(&new_id).expect("the node exists");
+    let family = props.font_family.expect("a text node names a family");
+
+    // The default content names `sans-serif`, which no host registers. A text
+    // node the session created must be measurable, or every later layout pass
+    // fails; the family therefore comes from the engine, not from a constant.
+    assert_ne!(family, "sans-serif");
+    assert!(
+        session.font_families().contains(&family),
+        "`{family}` should be a registered family, found {:?}",
+        session.font_families()
+    );
+}
+
+#[test]
+fn a_created_text_node_lays_out_without_diagnostics() {
+    let mut session = open_sample();
+    let new_id = fresh_id(0xB2);
+    let page = first_page(&session);
+
+    session
+        .apply(&request_now(
+            &session,
+            vec![create(
+                &new_id,
+                "text",
+                Some("Measurable"),
+                NodeParent::PageRoot {
+                    page: page.to_string(),
+                },
+            )],
+        ))
+        .expect("the text node is created");
+
+    // Layout measures every text node, so a family that cannot be measured turns
+    // into a failure here. This is the assertion that the create is usable rather
+    // than merely stored.
+    let layout = session
+        .layout(page, preview_options())
+        .expect("the page lays out");
+    assert!(
+        layout.nodes.iter().any(|node| node.id == new_id),
+        "the created node has geometry"
+    );
+    assert!(
+        layout.diagnostics.is_empty(),
+        "layout reported: {:?}",
+        layout.diagnostics
+    );
+}
+
+#[test]
+fn capabilities_report_what_the_build_can_do() {
+    let session = open_sample();
+    let capabilities = session.capabilities();
+
+    assert_eq!(
+        capabilities.creatable_kinds,
+        vec!["frame", "group", "shape", "text", "image"]
+    );
+    assert!(
+        capabilities.font_families.contains(&"Inter".to_owned()),
+        "the pinned Latin face is reported: {:?}",
+        capabilities.font_families
+    );
+    assert!(
+        capabilities
+            .font_families
+            .contains(&"Noto Sans Arabic".to_owned()),
+        "the pinned Arabic face is reported: {:?}",
+        capabilities.font_families
+    );
+    // The engines are named because they are temporary: a caller that records
+    // what it saw should record what produced it.
+    assert!(capabilities.renderer.contains("vello_cpu"));
+    assert!(capabilities.layout_engine.contains("taffy"));
+
+    // The list a caller reads is the same one the create path uses.
+    assert_eq!(session.font_families(), capabilities.font_families);
+}
+
+#[test]
+fn capabilities_cross_the_wire_in_the_documented_shape() {
+    let session = open_sample();
+    let json = serde_json::to_value(session.capabilities()).expect("capabilities serialize");
+
+    assert!(json["creatableKinds"].is_array());
+    assert!(json["fontFamilies"].is_array());
+    assert!(json["renderer"].is_string());
+    assert!(json["layoutEngine"].is_string());
+}
+
+#[test]
 fn a_preview_carries_its_pixels_through_serialization() {
     let session = open_sample();
     let page = first_page(&session);

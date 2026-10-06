@@ -21,6 +21,7 @@ import { invoke } from '@tauri-apps/api/core'
 import {
   AppError,
   type AppErrorShape,
+  type Capabilities,
   type CommitSummary,
   type DocumentView,
   type EditorBridge,
@@ -34,6 +35,7 @@ import {
 
 /** The command names the host registers. Kept in one place so they cannot drift. */
 export const COMMANDS = {
+  capabilities: 'capabilities',
   getView: 'get_view',
   openBytes: 'open_bytes',
   openDocument: 'open_document',
@@ -83,6 +85,10 @@ function isErrorShape(value: unknown): value is AppErrorShape {
  * the sample service instead, which is why no component imports this file.
  */
 export class TauriEditorBridge implements EditorBridge {
+  capabilities(): Promise<Capabilities> {
+    return call<Capabilities>(COMMANDS.capabilities)
+  }
+
   getView(): Promise<DocumentView> {
     return call<DocumentView>(COMMANDS.getView)
   }

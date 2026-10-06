@@ -2,6 +2,7 @@ import { computed, inject, provide, ref, type ComputedRef, type Ref } from 'vue'
 
 import {
   AppError,
+  type Capabilities,
   type DocumentView,
   type EditorBridge,
   type LayoutView,
@@ -9,6 +10,17 @@ import {
   type Rgba,
 } from '@/bridge/types'
 import { editorKey, editorStateKey, type ToolId } from './context'
+
+/**
+ * A new node identity.
+ *
+ * The v4 shape the document schema expects. Generated here rather than by the
+ * service so the caller can name a node it is about to create — which is what
+ * lets a batch refer to it and the selection adopt it.
+ */
+function newIdentity(): string {
+  return crypto.randomUUID()
+}
 
 /** The canvas the sample document is drawn at, matching its committed artboard. */
 export const ARTBOARD: [number, number] = [480, 320]
@@ -70,6 +82,11 @@ export interface EditorSession {
   save: () => Promise<void>
   open: () => Promise<void>
   openSample: () => Promise<void>
+  createNode: (kind: string, name?: string) => Promise<void>
+  deleteSelected: () => Promise<void>
+  capabilities: Ref<Capabilities | null>
+  canCreate: (kind: string) => boolean
+  loadCapabilities: () => Promise<void>
   canOpen: ComputedRef<boolean>
   canOpenSample: ComputedRef<boolean>
   setZoom: (next: number) => void
@@ -170,6 +187,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   async function load(): Promise<void> {
     busy.value = true
     try {
+      await loadCapabilities()
       await refresh()
       status.value = `Opened ${view.value?.displayName ?? 'document'}`
     } catch (cause) {
@@ -288,6 +306,100 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   /** Whether this build can open the committed sample. */
   const canOpenSample = computed(() => bridge.openSample !== undefined)
 
+  /** What the running build can do. Empty until it answers, so nothing is offered early. */
+  const capabilities = ref<Capabilities | null>(null)
+
+  async function loadCapabilities(): Promise<void> {
+    try {
+      capabilities.value = await bridge.capabilities()
+    } catch (cause) {
+      // A build that cannot describe itself still edits; only the offered
+      // controls fall back to the conservative defaults below.
+      report(cause, 'the build did not report its capabilities')
+    }
+  }
+
+  /**
+   * The kinds a tool may create.
+   *
+   * Falls back to an empty list rather than to an assumption: offering to
+   * create a kind the build cannot handle would fail on the first edit.
+   */
+  const creatableKinds = computed<string[]>(
+    () => capabilities.value?.creatableKinds ?? [],
+  )
+
+  function canCreate(kind: string): boolean {
+    return creatableKinds.value.includes(kind)
+  }
+
+  /**
+   * The page a new node should join.
+   *
+   * A document always has at least one page after opening one, so this is the
+   * first page. `null` when there is none, which is a document state rather than
+   * an error.
+   */
+  function activePage(): string | null {
+    return view.value?.pages[0]?.id ?? null
+  }
+
+  /**
+   * Creates a node of `kind` on the active page and selects it.
+   *
+   * The identity is generated here and sent on the wire so the same batch can
+   * refer to the node, and so the selection can name it immediately.
+   */
+  async function createNode(kind: string, name?: string): Promise<void> {
+    const page = activePage()
+    if (!page) {
+      report(
+        new AppError({
+          code: 'unknown-page',
+          message: 'There is no page to add to. Open or create a document first.',
+        }),
+        'there is no page to add to',
+      )
+      return
+    }
+    if (!canCreate(kind)) {
+      report(
+        new AppError({
+          code: 'invalid-request',
+          message: `This build cannot create a ${kind} node.`,
+        }),
+        'that kind cannot be created',
+      )
+      return
+    }
+
+    const id = newIdentity()
+    await edit([
+      {
+        kind: 'create-node',
+        node: id,
+        nodeKind: kind,
+        name: name ?? null,
+        // Left unset: the service supplies the kind's default, including a
+        // registered font for text, which is knowledge this layer does not have.
+        fill: null,
+        parent: { in: 'page-root', page },
+      },
+    ])
+    // Selecting the new node is what makes the create visible: the inspector
+    // fills in and the layer tree highlights it.
+    if (nodesById.value.has(id)) {
+      selectedId.value = id
+    }
+  }
+
+  /** Deletes the selected node and its subtree. */
+  async function deleteSelected(): Promise<void> {
+    const id = selectedId.value
+    if (!id) return
+    await edit([{ kind: 'delete-node', node: id }])
+  }
+
   async function openSample(): Promise<void> {
     if (!bridge.openSample) {
       report(
@@ -375,8 +487,13 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     save,
     open,
     openSample,
+    createNode,
+    deleteSelected,
+    capabilities,
+    canCreate,
     canOpen,
     canOpenSample,
+    loadCapabilities,
     setZoom,
     clearFailure,
   }

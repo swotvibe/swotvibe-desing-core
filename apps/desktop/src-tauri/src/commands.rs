@@ -25,8 +25,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::Serialize;
 use swotvibe_app::{
-    AppError, AppErrorCode, CommitSummary, DocumentView, EditorSession, HitTestResult, LayoutView,
-    Preview, PreviewOptions, PropsView,
+    AppError, AppErrorCode, Capabilities, CommitSummary, DocumentView, EditorSession,
+    HitTestResult, LayoutView, Preview, PreviewOptions, PropsView,
 };
 use tauri::State;
 
@@ -109,6 +109,15 @@ impl IpcError {
 
 /// The result type every command returns.
 pub type IpcResult<T> = Result<T, IpcError>;
+
+/// What this build can do.
+///
+/// An interface asks once and offers what exists, rather than discovering a
+/// limitation by triggering it.
+#[tauri::command]
+pub fn capabilities(state: State<'_, EditorState>) -> Capabilities {
+    state.lock_document().capabilities()
+}
 
 /// The open document, with no session state in it.
 ///

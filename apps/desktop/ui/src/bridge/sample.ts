@@ -16,15 +16,16 @@
  */
 
 import type {
+  Capabilities,
   CommitSummary,
   DocumentView,
+  EditRequest,
   LayoutNodeView,
   LayoutView,
   NodeView,
   Preview,
   PreviewOptions,
   PropsView,
-  Rgba,
 } from './types'
 
 const PAGE_ID = '018f0000-0000-7000-8000-000000000022'
@@ -163,6 +164,15 @@ export class SampleEditorBridge {
   private pristine = JSON.stringify(this.nodes)
   private dirty = false
 
+  async capabilities(): Promise<Capabilities> {
+    return {
+      creatableKinds: ['frame', 'group', 'shape', 'text', 'image'],
+      fontFamilies: ['Inter', 'Noto Sans Arabic'],
+      renderer: 'sample service (the browser build draws no pixels)',
+      layoutEngine: 'sample service (geometry is the committed M0 reference)',
+    }
+  }
+
   async getView(): Promise<DocumentView> {
     const nodes: NodeView[] = this.nodes.map((node) => ({
       id: node.id,
@@ -188,13 +198,7 @@ export class SampleEditorBridge {
     }
   }
 
-  async apply(request: {
-    expectedRevision: number
-    commands: ReadonlyArray<
-      | { kind: 'rename-node'; node: string; name: string | null }
-      | { kind: 'set-node-fill'; node: string; fill: Rgba | null }
-    >
-  }): Promise<CommitSummary> {
+  async apply(request: EditRequest): Promise<CommitSummary> {
     if (request.expectedRevision !== this.revision) {
       const error = new Error(
         `the request expected revision ${request.expectedRevision}, but the document is at ${this.revision}`,
@@ -206,20 +210,97 @@ export class SampleEditorBridge {
       throw error
     }
 
+    const added: string[] = []
+    const removed: string[] = []
     const changed: string[] = []
+
     for (const command of request.commands) {
+      if (command.kind === 'create-node') {
+        if (this.nodes.some((candidate) => candidate.id === command.node)) {
+          const error = new Error('the identity is already taken')
+          Object.assign(error, { code: 'command-rejected', node: command.node })
+          throw error
+        }
+        const parentId = command.parent.in === 'child' ? command.parent.parent : null
+        if (parentId && !this.nodes.some((candidate) => candidate.id === parentId)) {
+          const error = new Error('the parent node is not in the document')
+          Object.assign(error, { code: 'unknown-node', node: parentId })
+          throw error
+        }
+        this.nodes.push({
+          id: command.node,
+          kind: command.nodeKind,
+          name: command.name ?? '',
+          parent: parentId,
+          children: [],
+          props: props({
+            // A created node needs a size to be visible; the reference service
+            // uses a modest default rather than a zero-sized node.
+            size: [80, 80],
+            fill: command.fill ?? { r: 200, g: 200, b: 200, a: 255 },
+            shapeGeometry: command.nodeKind === 'shape' ? 'rect' : null,
+            cornerRadius: command.nodeKind === 'shape' ? 0 : null,
+            textContent: command.nodeKind === 'text' ? 'Text' : null,
+            fontFamily: command.nodeKind === 'text' ? 'Inter' : null,
+            fontSize: command.nodeKind === 'text' ? 16 : null,
+          }),
+          rect: [0, 0, 80, 80],
+        })
+        if (parentId) {
+          const parent = this.nodes.find((candidate) => candidate.id === parentId)
+          parent?.children.push(command.node)
+        }
+        added.push(command.node)
+        continue
+      }
+
       const node = this.nodes.find((candidate) => candidate.id === command.node)
       if (!node) {
         const error = new Error('the node is not in the document')
         Object.assign(error, { code: 'unknown-node', node: command.node })
         throw error
       }
-      if (command.kind === 'rename-node') {
-        node.name = command.name ?? ''
-      } else {
-        node.props = { ...node.props, fill: command.fill }
+
+      switch (command.kind) {
+        case 'delete-node': {
+          // A subtree delete, like the kernel's: the node and everything under
+          // it, and the parent stops naming it.
+          const doomed = this.collectSubtree(command.node)
+          if (node.parent) {
+            const parent = this.nodes.find((candidate) => candidate.id === node.parent)
+            if (parent) {
+              parent.children = parent.children.filter((id) => id !== command.node)
+            }
+          }
+          this.nodes = this.nodes.filter((candidate) => !doomed.has(candidate.id))
+          removed.push(...doomed)
+          break
+        }
+        case 'move-node': {
+          const parentId = command.parent.in === 'child' ? command.parent.parent : null
+          if (node.parent) {
+            const previous = this.nodes.find((candidate) => candidate.id === node.parent)
+            if (previous) {
+              previous.children = previous.children.filter((id) => id !== command.node)
+            }
+          }
+          node.parent = parentId
+          if (parentId) {
+            const parent = this.nodes.find((candidate) => candidate.id === parentId)
+            parent?.children.push(command.node)
+          }
+          changed.push(node.id)
+          break
+        }
+        case 'rename-node':
+          node.name = command.name ?? ''
+          changed.push(node.id)
+          break
+        case 'set-node-fill':
+          node.props = { ...node.props, fill: command.fill }
+          changed.push(node.id)
+          break
       }
-      changed.push(node.id)
     }
 
     const previous = this.revision
@@ -231,11 +312,27 @@ export class SampleEditorBridge {
       dirty: this.dirty,
       canUndo: this.dirty,
       canRedo: false,
-      addedNodes: [],
-      removedNodes: [],
+      addedNodes: added,
+      removedNodes: removed,
       changedNodes: changed,
       affectedPages: [PAGE_ID],
     }
+  }
+
+  /** A node and every node beneath it. */
+  private collectSubtree(root: string): Set<string> {
+    const found = new Set<string>([root])
+    let grew = true
+    while (grew) {
+      grew = false
+      for (const node of this.nodes) {
+        if (node.parent && found.has(node.parent) && !found.has(node.id)) {
+          found.add(node.id)
+          grew = true
+        }
+      }
+    }
+    return found
   }
 
   async undo(): Promise<CommitSummary> {

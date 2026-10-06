@@ -79,9 +79,9 @@ mod error;
 mod session;
 
 pub use dto::{
-    CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult, LayoutNodeView,
-    LayoutView, NodeIdString, NodeParent, NodeView, PageView, Preview, PreviewOptions, PropsView,
-    Rgba, StrokeView,
+    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult,
+    LayoutNodeView, LayoutView, NodeIdString, NodeParent, NodeView, PageView, Preview,
+    PreviewOptions, PropsView, Rgba, StrokeView,
 };
 pub use error::{AppError, AppErrorCode};
 pub use session::{EditorSession, SharedTextEngine};

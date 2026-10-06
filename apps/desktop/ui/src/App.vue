@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 
 import BottomToolbar from '@/components/BottomToolbar.vue'
 import DocumentHeader from '@/components/DocumentHeader.vue'
@@ -18,8 +18,42 @@ import { provideEditorSession, useEditorBridge } from '@/editor/useEditor'
  */
 const editor = provideEditorSession(useEditorBridge())
 
+/**
+ * Keyboard shortcuts for the operations that have one.
+ *
+ * Bound on the window rather than on a panel so the shortcut works wherever the
+ * focus is, except inside a text field: pressing Delete while typing a layer
+ * name must delete a character, not the node.
+ */
+function onKeydown(event: KeyboardEvent): void {
+  const target = event.target as HTMLElement | null
+  const typing =
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target?.isContentEditable === true
+  if (typing) return
+
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (editor.selectedId.value === null) return
+    // Backspace is only a delete here because nothing in the shell is
+    // navigable backwards; if that changes, this binding should narrow.
+    event.preventDefault()
+    void editor.deleteSelected()
+    return
+  }
+
+  if (event.key === 'Escape') {
+    editor.select(null)
+  }
+}
+
 onMounted(() => {
   void editor.load()
+  window.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
 })
 </script>
 

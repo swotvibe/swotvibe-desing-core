@@ -40,9 +40,9 @@ use swotvibe_render::{RenderAssets, RenderConfig, Renderer, VELLO_ENGINE_ID, Vel
 use swotvibe_text::TextLayoutEngine;
 
 use crate::dto::{
-    CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult, LayoutNodeView,
-    LayoutView, NodeParent, NodeView, PageView, Preview, PreviewOptions, PropsView, Rgba,
-    StrokeView,
+    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult,
+    LayoutNodeView, LayoutView, NodeParent, NodeView, PageView, Preview, PreviewOptions, PropsView,
+    Rgba, StrokeView,
 };
 use crate::error::{AppError, AppErrorCode};
 
@@ -490,6 +490,26 @@ impl EditorSession {
         self.engine.document().pages().first().map(|page| page.id)
     }
 
+    /// The font families this session can measure text with.
+    #[must_use]
+    pub fn font_families(&self) -> Vec<String> {
+        self.text.fonts().families()
+    }
+
+    /// What this build can do, so an interface can offer it honestly.
+    #[must_use]
+    pub fn capabilities(&self) -> Capabilities {
+        Capabilities {
+            creatable_kinds: ["frame", "group", "shape", "text", "image"]
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect(),
+            font_families: self.font_families(),
+            renderer: VELLO_ENGINE_ID.to_owned(),
+            layout_engine: swotvibe_layout::engine_id().to_owned(),
+        }
+    }
+
     /// Takes an immutable, revision-tagged copy for a layout or render pass.
     #[must_use]
     pub fn snapshot(&self) -> Snapshot {
@@ -610,18 +630,28 @@ impl EditorSession {
                         name: name.clone(),
                         parent,
                     });
-                    // A created node starts with the kind's default properties;
-                    // a requested fill is applied as its own command right after,
-                    // inside the same batch, so the create carries no hidden
-                    // property logic.
+                    // A created node starts with the kind's default properties.
+                    // A text node has to name a registered family, or every later
+                    // layout pass fails; this layer knows the families, so it
+                    // supplies one rather than letting the default stand.
+                    // A requested fill rides in its own command inside the same
+                    // batch, so the create carries no hidden property logic.
+                    let mut props =
+                        NodeProps::default_for_with_font(kind, self.default_family().as_deref());
+                    let mut changed = false;
                     if let Some(fill) = fill {
-                        let mut props = NodeProps::default_for(kind);
                         props.fill = Some(Color {
                             r: fill.r,
                             g: fill.g,
                             b: fill.b,
                             a: fill.a,
                         });
+                        changed = true;
+                    }
+                    if kind == NodeKind::Text {
+                        changed = true;
+                    }
+                    if changed {
                         out.push(Command::SetNodeProps {
                             id,
                             props: Box::new(props),
@@ -671,6 +701,17 @@ impl EditorSession {
             }
         }
         Ok(out)
+    }
+
+    /// The family a new text node should start with.
+    ///
+    /// The first registered family rather than a hard-coded name: which faces
+    /// exist is the host's decision, and a name this layer invented would fail
+    /// the first layout pass. `None` only when no face is registered at all, in
+    /// which case a text node cannot be measured and the caller finds out from
+    /// the layout diagnostic rather than from a guess here.
+    fn default_family(&self) -> Option<String> {
+        self.text.fonts().families().into_iter().next()
     }
 
     /// Translates an interface placement into a kernel one.

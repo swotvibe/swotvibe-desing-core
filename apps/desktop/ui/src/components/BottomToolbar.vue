@@ -7,43 +7,85 @@ import {
   MousePointer2,
   PenTool,
   Square,
+  Trash2,
   Type,
   ZoomIn,
   ZoomOut,
 } from '@lucide/vue'
 
-import { useEditorSession } from '@/editor/useEditor'
 import type { ToolId } from '@/editor/context'
+import { useEditorSession } from '@/editor/useEditor'
 
 /**
  * The floating tool palette.
  *
- * Only `select` is wired to the document service. Unavailable tools are shown
- * disabled rather than omitted: a palette that changes shape as features land
- * is harder to learn than one that is honest about what it cannot do yet.
+ * A creation tool is enabled only when the running build can create that kind,
+ * which is asked once at start-up rather than discovered by failing. A tool that
+ * is genuinely wired but cannot apply anywhere — because no document is open —
+ * reports that when used, instead of being silently disabled and leaving the
+ * person to guess why.
  */
 const editor = useEditorSession()
+
+/** The node kind each creation tool creates, for the tools that create one. */
+const CREATES: Partial<Record<ToolId, string>> = {
+  frame: 'frame',
+  shape: 'shape',
+  text: 'text',
+}
 
 interface PaletteTool {
   id: ToolId
   label: string
   icon: unknown
-  available: boolean
+  /** `true` when the palette can act, `false` when nothing is behind it yet. */
+  creates: boolean
 }
 
 const tools: PaletteTool[] = [
-  { id: 'move', label: 'Move', icon: MousePointer2, available: true },
-  { id: 'select', label: 'Select', icon: Aperture, available: true },
-  { id: 'frame', label: 'Frame', icon: Square, available: false },
-  { id: 'shape', label: 'Shape', icon: Circle, available: false },
-  { id: 'pen', label: 'Pen', icon: PenTool, available: false },
-  { id: 'text', label: 'Text', icon: Type, available: false },
-  { id: 'comment', label: 'Comment', icon: MessageSquare, available: false },
-  { id: 'hand', label: 'Hand', icon: Hand, available: true },
+  { id: 'move', label: 'Move', icon: MousePointer2, creates: false },
+  { id: 'select', label: 'Select', icon: Aperture, creates: false },
+  { id: 'frame', label: 'Frame', icon: Square, creates: true },
+  { id: 'shape', label: 'Shape', icon: Circle, creates: true },
+  { id: 'pen', label: 'Pen', icon: PenTool, creates: false },
+  { id: 'text', label: 'Text', icon: Type, creates: true },
+  { id: 'comment', label: 'Comment', icon: MessageSquare, creates: false },
+  { id: 'hand', label: 'Hand', icon: Hand, creates: false },
 ]
 
+/** Whether a tool can be used at all in this build. */
+function usable(tool: PaletteTool): boolean {
+  if (!tool.creates) {
+    // Move, select and hand change session state only, so they always work.
+    return tool.id === 'move' || tool.id === 'select' || tool.id === 'hand'
+  }
+  const kind = CREATES[tool.id]
+  return kind !== undefined && editor.canCreate(kind)
+}
+
+/** Why a tool is unavailable, in words a person can act on. */
+function reason(tool: PaletteTool): string {
+  if (usable(tool)) {
+    const kind = CREATES[tool.id]
+    return kind ? `Add a ${kind}` : tool.label
+  }
+  if (tool.creates) {
+    return `${tool.label} is not available in this build`
+  }
+  return `${tool.label} is not available yet`
+}
+
 function choose(tool: PaletteTool): void {
-  if (!tool.available) return
+  if (!usable(tool)) return
+  const kind = CREATES[tool.id]
+  if (kind) {
+    // A creation tool acts and then hands control back to Select: leaving it
+    // armed would make the next click on the canvas ambiguous.
+    void editor.createNode(kind).then(() => {
+      editor.activeTool.value = 'select'
+    })
+    return
+  }
   editor.activeTool.value = tool.id
 }
 </script>
@@ -60,19 +102,34 @@ function choose(tool: PaletteTool): void {
       type="button"
       class="rounded-full p-2 transition-colors"
       :class="
-        editor.activeTool.value === tool.id && tool.available
+        editor.activeTool.value === tool.id && usable(tool)
           ? 'bg-accent-500 text-white'
-          : tool.available
+          : usable(tool)
             ? 'text-ink-300 hover:bg-shell-700'
             : 'text-ink-700'
       "
-      :disabled="!tool.available"
+      :disabled="!usable(tool)"
       :aria-pressed="editor.activeTool.value === tool.id"
-      :title="tool.available ? tool.label : `${tool.label} is not available yet`"
+      :title="reason(tool)"
       :aria-label="tool.label"
       @click="choose(tool)"
     >
       <component :is="tool.icon" class="size-4" aria-hidden="true" />
+    </button>
+
+    <button
+      type="button"
+      class="rounded-full p-2 text-ink-300 hover:bg-shell-700 disabled:text-ink-700"
+      :disabled="editor.selectedId.value === null"
+      :title="
+        editor.selectedId.value
+          ? 'Delete the selected node'
+          : 'Select a node to delete'
+      "
+      aria-label="Delete"
+      @click="editor.deleteSelected()"
+    >
+      <Trash2 class="size-4" aria-hidden="true" />
     </button>
 
     <span class="mx-1 h-5 w-px bg-white/10" aria-hidden="true" />

@@ -378,6 +378,35 @@ pub struct LayoutView {
     pub diagnostics: Vec<String>,
 }
 
+/// The outline of the editor's own capabilities.
+///
+/// An interface should not have to discover a limitation by triggering it. This
+/// states what the running build can actually do, so a control can be shown,
+/// disabled, or hidden for a reason rather than by trial.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Capabilities {
+    /// The node kinds this build can create.
+    ///
+    /// Every kind in the current schema, which is why it is a list rather than a
+    /// constant: a build that cannot render a kind would remove it here.
+    pub creatable_kinds: Vec<String>,
+    /// The font families a text node may name.
+    ///
+    /// A text node whose family is not registered cannot be measured, and layout
+    /// fails rather than substituting a face — the right behaviour for a design
+    /// document, but it means an interface has to know the usable names before it
+    /// offers to create text, instead of discovering the failure afterwards.
+    pub font_families: Vec<String>,
+    /// The renderer and pipeline a preview is produced with.
+    ///
+    /// Reported because it is a temporary choice: a caller that records what it
+    /// saw should record what produced it.
+    pub renderer: String,
+    /// The layout engine the geometry comes from.
+    pub layout_engine: String,
+}
+
 /// The result of testing a point against a page.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -128,8 +128,43 @@ export interface CommitSummary {
 }
 
 export type EditCommand =
+  | {
+      kind: 'create-node'
+      node: string
+      nodeKind: string
+      name: string | null
+      /** Set at creation because a property edit cannot read a node that does not exist yet. */
+      fill: Rgba | null
+      parent: NodeParent
+    }
+  | { kind: 'delete-node'; node: string }
+  | { kind: 'move-node'; node: string; parent: NodeParent }
   | { kind: 'rename-node'; node: string; name: string | null }
   | { kind: 'set-node-fill'; node: string; fill: Rgba | null }
+
+/**
+ * Where a created or moved node goes.
+ *
+ * Relative, never an index: an interface should not have to know how many
+ * siblings exist to say "at the end".
+ */
+export type NodeParent =
+  | { in: 'page-root'; page: string }
+  | { in: 'child'; parent: string }
+
+/**
+ * What the running build can do.
+ *
+ * Asked once at start-up so a control is offered, disabled, or hidden for a
+ * stated reason rather than discovered by failing.
+ */
+export interface Capabilities {
+  creatableKinds: string[]
+  /** The families a text node may name. Others cannot be measured. */
+  fontFamilies: string[]
+  renderer: string
+  layoutEngine: string
+}
 
 export interface EditRequest {
   expectedRevision: number
@@ -193,6 +228,8 @@ export class AppError extends Error {
 export interface EditorBridge {
   /** The open document. */
   getView(): Promise<DocumentView>
+  /** What this build can do, asked once so controls reflect reality. */
+  capabilities(): Promise<Capabilities>
   /** Applies one atomic batch at the revision the caller last saw. */
   apply(request: EditRequest): Promise<CommitSummary>
   undo(expectedRevision: number): Promise<CommitSummary>

@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest'
 
 import App from '@/App.vue'
 import { SampleEditorBridge } from '@/bridge/sample'
-import type { DocumentView, EditorBridge, LayoutView, PropsView } from '@/bridge/types'
+import type {
+  Capabilities,
+  DocumentView,
+  EditorBridge,
+  LayoutView,
+  PropsView,
+} from '@/bridge/types'
 import { editorKey } from '@/editor/context'
 import { createEditorSession } from '@/editor/useEditor'
 
@@ -78,6 +84,15 @@ class VanishingBridge implements EditorBridge {
 
   getView(): Promise<DocumentView> {
     return Promise.resolve(this.view())
+  }
+
+  capabilities(): Promise<Capabilities> {
+    return Promise.resolve({
+      creatableKinds: ['shape'],
+      fontFamilies: ['Inter'],
+      renderer: 'test',
+      layoutEngine: 'test',
+    })
   }
 
   layout(page: string): Promise<LayoutView> {
@@ -387,15 +402,174 @@ describe('a document with no pages', () => {
   })
 })
 
-describe('the tool palette', () => {
-  it('enables only the tools that are wired to the service', async () => {
+describe('creating and deleting', () => {
+  it('creates a node of the kind the tool names and selects it', async () => {
+    const { shell, bridge } = await mountShell()
+    const before = (await bridge.getView()).nodes.length
+
+    await shell.find('button[aria-label="Shape"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const view = await bridge.getView()
+    expect(view.nodes).toHaveLength(before + 1)
+    expect(view.revision).toBeGreaterThan(1)
+
+    // The new node is selected, which is what makes the create visible: the
+    // inspector fills in and the layer row highlights.
+    const selected = shell.findAll('[role="treeitem"][aria-selected="true"]')
+    expect(selected).toHaveLength(1)
+    const created = view.nodes.at(-1)
+    expect(created).toBeDefined()
+    expect(selected[0]?.text()).toContain(created!.name || created!.id.slice(-6))
+  })
+
+  it('creates a text node with a registered family, so it can be measured', async () => {
+    const { shell, bridge } = await mountShell()
+
+    await shell.find('button[aria-label="Text"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const view = await bridge.getView()
+    const created = view.nodes.at(-1)
+    expect(created?.kind).toBe('text')
+    // A family that is not registered fails layout, and layout runs on every
+    // refresh, so this is the assertion that the create is actually usable.
+    expect(created?.props.fontFamily).toBe('Inter')
+  })
+
+  it('hands control back to Select after a creation tool acts', async () => {
     const { shell } = await mountShell()
 
-    const select = shell.find('button[aria-label="Select"]')
-    expect(select.attributes('disabled')).toBeUndefined()
+    await shell.find('button[aria-label="Frame"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
 
-    expect(shell.find('button[aria-label="Frame"]').attributes('disabled')).toBeDefined()
+    const select = shell.find('button[aria-label="Select"]')
+    expect(select.attributes('aria-pressed')).toBe('true')
+  })
+
+  it('deletes the selected node through the palette', async () => {
+    const { shell, bridge } = await mountShell()
+    const before = (await bridge.getView()).nodes.length
+
+    await selectLayer(shell, 'Dot')
+    await flushPromises()
+
+    await shell.find('button[aria-label="Delete"]').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const view = await bridge.getView()
+    expect(view.nodes).toHaveLength(before - 1)
+    expect(view.nodes.some((node) => node.name === 'Dot')).toBe(false)
+  })
+
+  it('refuses to delete with nothing selected rather than guessing', async () => {
+    const { shell, bridge } = await mountShell()
+    const before = (await bridge.getView()).nodes.length
+
+    // Nothing is selected on a fresh shell.
+    expect(shell.findAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(0)
+    expect(shell.find('button[aria-label="Delete"]').attributes('disabled')).toBeDefined()
+
+    expect((await bridge.getView()).nodes).toHaveLength(before)
+  })
+
+  it('offers a creation tool only for a kind the build reports', async () => {
+    // A build that can create nothing: the palette must not offer creation.
+    const session = createEditorSession(new VanishingBridge())
+    await session.loadCapabilities()
+
+    expect(session.capabilities.value?.creatableKinds).toEqual(['shape'])
+    expect(session.canCreate('shape')).toBe(true)
+    expect(session.canCreate('frame')).toBe(false)
+    expect(session.canCreate('text')).toBe(false)
+  })
+
+  it('offers nothing before the build has answered', async () => {
+    // The capabilities are asked for during load. Before it answers, an empty
+    // list is the honest state: offering a kind and then failing is worse than
+    // offering nothing for a moment.
+    const session = createEditorSession(new VanishingBridge())
+    expect(session.capabilities.value).toBeNull()
+    expect(session.canCreate('shape')).toBe(false)
+  })
+})
+
+describe('keyboard shortcuts', () => {
+  it('deletes the selection with Delete', async () => {
+    const { shell, bridge } = await mountShell()
+    const before = (await bridge.getView()).nodes.length
+
+    await selectLayer(shell, 'Dot')
+    await flushPromises()
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }))
+    await flushPromises()
+    await flushPromises()
+
+    expect((await bridge.getView()).nodes).toHaveLength(before - 1)
+  })
+
+  it('clears the selection with Escape', async () => {
+    const { shell } = await mountShell()
+
+    await selectLayer(shell, 'Header')
+    await flushPromises()
+    expect(shell.findAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(1)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+
+    expect(shell.findAll('[role="treeitem"][aria-selected="true"]')).toHaveLength(0)
+  })
+
+  it('leaves Delete alone while a text field has focus', async () => {
+    const { shell, bridge } = await mountShell()
+    const before = (await bridge.getView()).nodes.length
+
+    await selectLayer(shell, 'Dot')
+    await flushPromises()
+
+    // Typing in a field must delete a character, not the selected node.
+    const search = shell.find('#layer-search')
+    ;(search.element as HTMLInputElement).focus()
+    search.element.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }),
+    )
+    await flushPromises()
+
+    expect((await bridge.getView()).nodes).toHaveLength(before)
+  })
+})
+
+describe('the tool palette', () => {
+  it('enables the creation tools the build reports and leaves the rest', async () => {
+    const { shell } = await mountShell()
+
+    // The sample service can create these, so they act.
+    for (const label of ['Frame', 'Shape', 'Text']) {
+      expect(shell.find(`button[aria-label="${label}"]`).attributes('disabled')).toBeUndefined()
+    }
+
+    // Nothing is behind these two yet, and a control that looks live and does
+    // nothing is worse than one that is visibly unavailable.
     expect(shell.find('button[aria-label="Pen"]').attributes('disabled')).toBeDefined()
+    expect(shell.find('button[aria-label="Comment"]').attributes('disabled')).toBeDefined()
+
+    // Select stays pressed until a creation tool acts.
+    expect(shell.find('button[aria-label="Select"]').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('names why an unavailable tool is unavailable', async () => {
+    const { shell } = await mountShell()
+
+    expect(shell.find('button[aria-label="Pen"]').attributes('title')).toContain(
+      'not available yet',
+    )
+    expect(shell.find('button[aria-label="Shape"]').attributes('title')).toContain('shape')
   })
 
   it('keeps the canvas usable while a creation tool is unavailable', async () => {

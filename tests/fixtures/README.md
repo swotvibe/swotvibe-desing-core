@@ -30,7 +30,8 @@ nested phone scene and layer tree, Arabic and Latin labels, seven generated
 path-only SVG icons, and one generated product PNG. Run
 `python tests/fixtures/generate_m0_editor_ui.py` to regenerate the deterministic
 fixture and assets. Render references live under `tests/golden/m0-editor-ui.*`;
-the image fingerprint remains unreviewed until a human checks the render.
+the image fingerprint records the visual review verdict, and regeneration
+resets it until a human checks the new render.
 
 ### `coordinate-contract.v1.json`
 

@@ -44,7 +44,8 @@ customer document:
   input.
 - `tests/golden/m0-sample.*` — the rendered reference and its layout report.
 - `tests/golden/m0-editor-ui.*` — the editor screen render and geometry report;
-  the image still needs human review before it represents an accepted design.
+  its `reviewed` field records a visual approval dated 2026-10-06, which makes
+  the render a comparison reference rather than an accepted product design.
 
 A licensed product corpus is still required before resource limits, bundle
 defaults, or a stable file extension can be published. Tests generate small

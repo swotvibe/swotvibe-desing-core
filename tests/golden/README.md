@@ -24,10 +24,10 @@ Rules:
 The input is `tests/fixtures/m0-sample-v2.json`, and the test that produces and
 compares them is `crates/tools/tests/m0_vertical_slice.rs`.
 
-**Review status: the image is generated and compared, but no human has approved
-it yet.** `m0-sample.fingerprint.json` records this in its `reviewed` field
-rather than leaving it implicit, and the M0 gate is not fully passed until that
-field names a reviewer. What the review has to cover:
+**Review status: approved by the project owner on 2026-10-06.** The `reviewed`
+field in `m0-sample.fingerprint.json` records that verdict instead of leaving it
+implicit. The approval covers visual formatting and text orientation; it does
+not select a layout or render backend. What the review covers:
 
 - The card, its rounded corners, and its 1-unit stroke are where the report says.
 - The Latin line and the Arabic line are legible, correctly ordered, and not
@@ -49,9 +49,12 @@ Input: `tests/fixtures/m0-editor-ui-v2.json`; generator:
 `python tests/fixtures/generate_m0_editor_ui.py`; integration test:
 `crates/tools/tests/m0_editor_ui.rs`. Regenerate with
 `SWOTVIBE_UPDATE_EDITOR_GOLDEN=1 cargo test -p swotvibe-tools --test m0_editor_ui`.
-The fingerprint currently has `reviewed: null`: this generated fixture is not a
-human-approved product design. Geometry is compared exactly as serialized and
-pixels use the same per-channel tolerance of 2.
+Its `reviewed` field records the project owner's approval of visual formatting
+and text orientation on 2026-10-06, which makes this render a usable comparison
+reference. That approval does not make the generated screen an accepted product
+design; the product questions in `../../docs/product/README.md` stay open.
+Geometry is compared exactly as serialized and pixels use the same per-channel
+tolerance of 2.
 
 #### Regenerating
 

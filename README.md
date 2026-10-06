@@ -19,17 +19,20 @@ rasterized by one renderer, and compared against committed references.
 | 5. An edit with undo, redo, and a round trip | Covered |
 | 6. A batch that fails at its last command leaves no trace | Covered |
 
-The remaining gap is the **human review of the reference images**: their
-fingerprints still record `reviewed: null` or a pending review, and no
-`DEC-LAYOUT`, `DEC-TEXT-AR`, or `DEC-RENDERER` decision is closed. The three
-backends are provisional, chosen so the slice can pass through real adapters,
-not selected.
+The reference images are **visually approved**: both fingerprints record
+`reviewed` as the project owner's approval of visual formatting and text
+orientation on 2026-10-06, so the M0 visual gate is closed. What stays open is
+the engine choice — no `DEC-LAYOUT`, `DEC-TEXT-AR`, or `DEC-RENDERER` decision
+is closed, and the three backends remain provisional, chosen so the slice can
+pass through real adapters rather than selected.
 
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
 `unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations. Cross-platform CI
-passed on commit `caff203`, including Linux external ZIP readers and the
-500,000-mutation fuzz run
+passed on commit `fc83f67` with both M0 slices, including the Arabic editor
+sample, on the Windows, Linux, and macOS matrix
+([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37351705752)).
+Linux external ZIP readers and the 500,000-mutation fuzz run passed on `caff203`
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
 ZIP64 public-format readiness remains open until real product files establish
 representative asset sizes and counts. No default bundle limits or stable file

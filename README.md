@@ -28,9 +28,10 @@ pass through real adapters rather than selected.
 
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
-`unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations. Cross-platform CI
-passed on commit `c224926` with both M0 slices, including the Arabic editor
-sample, on the Windows, Linux, and macOS matrix
+`unzip`/`zipinfo`, 7-Zip, and 500,000 parser fuzz mutations.
+
+Cross-platform CI passed on commit `c224926` with both M0 slices, including the
+Arabic editor sample, on the Windows, Linux, and macOS matrix
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37393874233)).
 Linux external ZIP readers and the 500,000-mutation fuzz run passed on `caff203`
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37270260436)).
@@ -38,6 +39,13 @@ ZIP64 public-format readiness remains open until real product files establish
 representative asset sizes and counts. No default bundle limits or stable file
 extension have been published. See [ADR-0003](./docs/adr/0003-file-container.md)
 and the [technical specification](./docs/architecture/core-kernel-technical-specification.md).
+
+The M1 work keeps that matrix green and adds an interface job — Node, type-check,
+component tests, and a production build
+([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37434712462)).
+The desktop host is deliberately not in CI: its platform libraries are not on a
+headless runner, and a host that has not been built on a platform must not be
+reported as passing there.
 
 ## Workspace
 

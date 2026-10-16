@@ -123,9 +123,16 @@ without changing runtime model types.
 
 The codec is in `crates/format/src/bundle.rs`; file operations and CLI commands
 are in `crates/tools`. The parser rejects non-contiguous layouts and ZIP
-metadata outside the profile before passing bytes to the pinned `zip = 8.6.0`
+metadata outside the profile before passing bytes to the pinned `zip = 9.0.4`
 reader. Deterministic archive output, Python interoperability, pinned upstream
 negative seeds, and a bounded mutation harness are covered in the repository.
+
+The dependency was updated from 8.6.0 on 2026-10-16 after crates.io marked that
+version as yanked and the CI advisory check rejected it. Default features remain
+disabled; the restricted Stored/ZIP64 profile and document schema are unchanged.
+Entry-name decoding now propagates the upstream fallible result. Local Windows
+validation passed all 360 workspace tests with Python, Info-ZIP and 7-Zip
+required, 10,000 bounded parser mutations, formatting, Clippy and cargo-deny.
 
 The repository includes synthetic profiles for zero assets, 64 assets of 64
 bytes each, and four assets of 192 KiB each, plus a CLI recovery test with a

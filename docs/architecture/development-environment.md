@@ -81,7 +81,7 @@ cargo test -p swotvibe-core -p swotvibe-format -p swotvibe-text -p swotvibe-layo
 | الاعتماد المباشر | الإصدار في manifests | الاستخدام |
 |---|---|---|
 | `uuid`, `thiserror`, `serde`, `serde_json` | راجع `Cargo.toml` و`Cargo.lock` | هوية، أخطاء، DTOs، ومحتوى JSON |
-| `zip` | `=8.6.0`, بلا ميزات افتراضية | profile ZIP64 المحدود في `format` |
+| `zip` | `=9.0.4`, بلا ميزات افتراضية | profile ZIP64 المحدود في `format` |
 | `tempfile` | `3.27.0` | ملفات مؤقتة للحفظ والاستبدال في CLI |
 | `windows-sys` | `0.61` (Windows فقط) | `ReplaceFileW` لحفظ ACL أثناء الاستبدال |
 | `sha2` | `0.10.9` | بصمات الخطوط والمراجع الحتمية |

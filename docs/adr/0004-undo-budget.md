@@ -1,6 +1,6 @@
 # ADR-0004: Session undo retention policy
 
-- **Status:** accepted policy; byte estimator and default budget remain to be implemented and measured
+- **Status:** configurable estimator and retention implemented (2026-10-16); numeric byte default and representative memory measurements remain open
 - **Date:** 2026-10-05
 - **Owner:** project
 - **Spec IDs:** CORE-UNDO-01
@@ -8,7 +8,7 @@
 ## Context
 
 History is session-scoped and stores inverse commands in `done` and `undone`
-stacks. M0 currently caps the number of committed steps at 256 by default, but
+stacks. The original M0 capped the number of committed steps at 256 by default, but
 one inverse can own a large deleted subtree. Step count alone therefore does
 not represent retained memory. The repository does not yet have a representative
 history corpus or product memory budget, so selecting a numeric byte default
@@ -28,15 +28,19 @@ limits:
    RSS guarantee; allocator metadata, shared allocations, and temporary working
    copies are outside its scope.
 
-The byte limit is caller-configurable. Do not publish a numeric default until
-the benchmark corpus and supported host memory targets exist. When implemented,
-the policy is:
+The byte limit is caller-configurable. No numeric default is published until
+the benchmark corpus and supported host memory targets exist. The implemented
+policy is:
 
 - After commit, clear redo history, append the new inverse, then evict the
   oldest retained entries until both limits are met.
 - Apply the step limit to the total retained timeline (`done + undone`), not
-  just currently undoable entries. Moving an entry between stacks during
-  undo/redo does not change its retained-byte charge.
+  just currently undoable entries. Undo/redo recomputes the charge of the
+  replacement inverse and enforces both limits again. In this inverse-command
+  representation a rename from a short string to a long string retains different
+  data in each direction; preserving the old charge would undercount redo.
+  Consequently replay can also evict distant history. The document replay still
+  succeeds, and status reports the retained result.
 - Never split a transaction's inverse. If a single newest inverse exceeds the
   entire byte budget, commit the document change but do not retain that inverse;
   expose this loss of undo through history status so the host can communicate
@@ -63,8 +67,13 @@ the policy is:
 ## Evidence and limits
 
 Current implementation evidence: [`history.rs`](../../crates/core/src/history.rs)
-stores inverse commands in two vectors and exposes a step capacity. Subtree
-restoration inverses retain node trees, so their cost varies with the edit.
+implements both-stack limits and status. [`history_size.rs`](../../crates/core/src/history_size.rs)
+counts retained entry values, command-vector capacities, boxed properties,
+restored nodes/pages, strings and nested extension JSON. JSON map storage uses
+an explicit per-entry estimate, since its allocator internals are not observable.
+Unused top-level stack slots and transient working copies are outside the estimate.
+[`history_integrity.rs`](../../crates/core/tests/history_integrity.rs) exercises
+zero budgets, redo-only retention, inverse-size changes, metadata and oversized deletions.
 There is no official standard that sets an appropriate undo-memory budget for a
 design editor. This remains a workload and host-memory decision, not a fact
 that library documentation can settle.
@@ -90,12 +99,15 @@ that library documentation can settle.
 The estimate will not equal resident memory. The host must treat it as a
 consistent admission/retention policy, not a process-wide memory controller.
 The oversized-entry behavior means an accepted edit may have no undo record;
-status must be surfaced at the same commit boundary. `commit_with` currently
-clones the document to build inverses, so this ADR does not claim to bound
+status must be surfaced at the same commit boundary. Custom `commit_with` calls
+still clone the pre-batch document; the engine's ordinary commit and replay paths
+use self-contained removal effects. This ADR does not claim to bound
 temporary transaction memory; that cost needs separate profiling.
 
 ## Follow-up
 
-Implement byte accounting and status as part of the next history-hardening
-milestone. Until the workload exists, keep 256 steps as the only default and
-mark a byte ceiling as unconfigured rather than inventing a numeric promise.
+Accounting and status are implemented in the core through `HistoryStatus`.
+Application and host integration are maintained separately from this core-only change.
+Keep 256 total retained steps as the only default; the byte ceiling remains
+unconfigured. Benchmark representative workloads and allocator-observed memory
+before selecting a product default or claiming a process-memory bound.

@@ -420,9 +420,9 @@ pub struct Document {
 ///
 /// The kernel never reads these values; it only guarantees they survive a load
 /// and a save. They are not part of the document's structure, so they are
-/// excluded from equality, from change detection, and from the command
-/// surface: an edit to a live document cannot mutate them, and nothing the
-/// kernel does depends on their content.
+/// excluded from Node/Page value equality. Removal and restoration commands
+/// retain them, and document change detection accounts for their presence;
+/// rendering and layout do not interpret their content.
 pub type Extensions = std::collections::BTreeMap<String, serde_json::Value>;
 
 impl Document {
@@ -686,7 +686,22 @@ impl Document {
     /// must never rely on.
     pub(crate) fn remove_page(&mut self, id: PageId) -> Option<Page> {
         let index = self.pages.iter().position(|p| p.id == id)?;
+        self.page_extensions.remove(&id);
         Some(self.pages.remove(index))
+    }
+
+    pub(crate) fn insert_page_at(&mut self, index: usize, page: Page) {
+        self.pages.insert(index.min(self.pages.len()), page);
+    }
+
+    pub(crate) fn insert_asset_at(&mut self, index: usize, asset: Asset) {
+        self.assets.insert(index.min(self.assets.len()), asset);
+    }
+
+    pub(crate) fn remove_asset(&mut self, id: AssetId) -> Option<Asset> {
+        let index = self.assets.iter().position(|asset| asset.id == id)?;
+        self.asset_extensions.remove(&id);
+        Some(self.assets.remove(index))
     }
 
     /// Stores a node.
@@ -725,6 +740,7 @@ impl Document {
         self.scene.clear_parent(id);
         self.scene.clear_page(id);
         for doomed in visited {
+            self.node_extensions.remove(&doomed);
             if doomed != id {
                 self.scene.remove_node(doomed);
             }

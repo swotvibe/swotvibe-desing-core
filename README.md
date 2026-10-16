@@ -41,6 +41,12 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 
 ## Workspace
 
+The [2026-10-16 core review](./docs/architecture/core-foundation-review-2026-10-16.md)
+fixes compound-batch undo, preserves removed page/node/asset metadata, adds
+validated command planning, and provides configurable history retention across
+both undo and redo. The existing 256-step default remains; the estimated-byte
+ceiling is unconfigured until representative workloads justify a host policy.
+
 | Crate | Responsibility | State |
 |---|---|---|
 | `swotvibe-core` | Document model, properties, geometry, identity, commands, atomic transactions, history, validation, snapshots | Implemented for the current M0 model |

@@ -13,9 +13,9 @@
 
 use crate::commands::{Command, CommandError, CommandErrorCode, NodePlacement, Position};
 use crate::ids::{AssetId, NodeId, PageId};
-use crate::model::{Asset, Document, Node, NodeKind, Page, Revision};
+use crate::model::{Asset, Document, Extensions, Node, NodeKind, Page, Revision};
 use crate::props::NodeProps;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 /// A record of one command's observable effect, computed from the state that
 /// actually existed at apply time.
@@ -36,11 +36,26 @@ pub enum Effect {
     PageRemoved {
         /// The removed page identity.
         page: PageId,
+        /// Its complete value at removal.
+        removed: Box<Page>,
+        /// Its former position.
+        old_index: usize,
+        /// Its preserved metadata.
+        extensions: Extensions,
     },
     /// An asset was registered.
     AssetCreated {
         /// The new asset identity.
         asset: AssetId,
+    },
+    /// An unreferenced asset was removed.
+    AssetRemoved {
+        /// Its complete value at removal.
+        asset: Asset,
+        /// Its former position.
+        old_index: usize,
+        /// Its preserved metadata.
+        extensions: Extensions,
     },
     /// A node was created and attached.
     NodeCreated {
@@ -51,6 +66,8 @@ pub enum Effect {
     },
     /// A node and its whole subtree were removed.
     NodeRemoved {
+        /// The values and metadata at removal, in parent-before-child order.
+        removed: Vec<(Node, Extensions)>,
         /// The removed subtree root.
         node: NodeId,
         /// The parent it was attached to, or `None` when it was a page root.
@@ -112,6 +129,8 @@ pub struct ChangeSet {
     added_pages: BTreeSet<PageId>,
     changed_pages: BTreeSet<PageId>,
     added_assets: BTreeSet<AssetId>,
+    removed_assets: BTreeSet<AssetId>,
+    changed_assets: BTreeSet<AssetId>,
     affected_pages: BTreeSet<PageId>,
     effects: Vec<Effect>,
 }
@@ -139,7 +158,7 @@ impl ChangeSet {
         self.removed_nodes.iter().copied()
     }
 
-    /// Nodes whose stored value changed without being added, removed, or moved.
+    /// Existing nodes whose stored content, children, or preserved metadata changed.
     pub fn changed_nodes(&self) -> impl Iterator<Item = NodeId> + '_ {
         self.changed_nodes.iter().copied()
     }
@@ -162,6 +181,16 @@ impl ChangeSet {
     /// Assets that were added.
     pub fn added_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
         self.added_assets.iter().copied()
+    }
+
+    /// Assets no longer registered after this batch.
+    pub fn removed_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
+        self.removed_assets.iter().copied()
+    }
+
+    /// Existing assets whose stored registration or preserved metadata changed.
+    pub fn changed_assets(&self) -> impl Iterator<Item = AssetId> + '_ {
+        self.changed_assets.iter().copied()
     }
 
     /// Pages a consumer must repaint or recompute.
@@ -190,6 +219,8 @@ impl ChangeSet {
             && self.added_pages.is_empty()
             && self.changed_pages.is_empty()
             && self.added_assets.is_empty()
+            && self.removed_assets.is_empty()
+            && self.changed_assets.is_empty()
     }
 }
 
@@ -307,7 +338,6 @@ pub fn apply_batch(
         return Err(BatchError::RevisionExhausted);
     }
 
-    let before = doc.clone();
     let mut working = doc.clone();
     let mut effects = Vec::with_capacity(commands.len());
     let mut created_pages = Vec::new();
@@ -317,17 +347,73 @@ pub fn apply_batch(
         effects.push(effect);
     }
 
-    let change_set = diff(
-        &before,
-        &working,
-        effects,
-        created_pages,
-        before.revision().next(),
-    );
-    working.set_revision(before.revision().next());
+    let change_set = diff(doc, &working, effects, created_pages, doc.revision().next());
+    working.set_revision(doc.revision().next());
     *doc = working;
 
     Ok(Commit { change_set })
+}
+
+/// A detached, validated command plan. Later commands read the effects of earlier
+/// ones without publishing partial edits or advancing the live revision.
+#[derive(Debug)]
+pub struct CommandPlan {
+    working: Document,
+    commands: Vec<Command>,
+    created_pages: Vec<PageId>,
+    failure: Option<BatchError>,
+}
+
+impl CommandPlan {
+    /// Starts a plan from the current document state.
+    #[must_use]
+    pub fn new(document: &Document) -> Self {
+        Self {
+            working: document.clone(),
+            commands: Vec::new(),
+            created_pages: Vec::new(),
+            failure: None,
+        }
+    }
+
+    /// Reads the staged state, including every previously accepted command.
+    #[must_use]
+    pub const fn document(&self) -> &Document {
+        &self.working
+    }
+
+    /// Adds a command using the same checks as a committed transaction.
+    ///
+    /// # Errors
+    /// A rejected command poisons the plan; even if its error is ignored,
+    /// `into_commands` cannot publish a valid-looking prefix.
+    pub fn push(&mut self, command: Command) -> Result<(), BatchError> {
+        if let Some(error) = &self.failure {
+            return Err(error.clone());
+        }
+        match apply_one(&mut self.working, &command, &mut self.created_pages) {
+            Ok(_) => {
+                self.commands.push(command);
+                Ok(())
+            }
+            Err(error) => {
+                let error = BatchError::Command(error);
+                self.failure = Some(error.clone());
+                Err(error)
+            }
+        }
+    }
+
+    /// Returns a complete plan for committing at the caller's expected revision.
+    ///
+    /// # Errors
+    /// Returns the first rejection if any command failed.
+    pub fn into_commands(self) -> Result<Vec<Command>, BatchError> {
+        match self.failure {
+            Some(error) => Err(error),
+            None => Ok(self.commands),
+        }
+    }
 }
 
 /// Applies a batch against the document's current revision.
@@ -395,6 +481,83 @@ fn apply_one(
             order,
         } => apply_reorder_to(doc, *parent, *page, order),
         Command::RemovePage { id } => apply_remove_page(doc, *id),
+        Command::RestoreNode {
+            node,
+            parent,
+            extensions,
+        } => {
+            if !node.children().is_empty() {
+                return Err(CommandError::general(
+                    CommandErrorCode::PreconditionFailed,
+                    "restore one node at a time, with an empty child list",
+                ));
+            }
+            let effect = apply_create_node(doc, node.id, node.kind, node.name.as_deref(), parent)?;
+            apply_set_node_props(doc, node.id, &node.props)?;
+            doc.set_node_extensions(node.id, extensions.clone());
+            Ok(effect)
+        }
+        Command::RestorePage {
+            page,
+            index,
+            extensions,
+        } => {
+            if doc.page(page.id).is_some() || !page.roots().is_empty() {
+                return Err(CommandError::on_page(
+                    CommandErrorCode::PreconditionFailed,
+                    page.id,
+                    "only an absent, empty page can be restored",
+                ));
+            }
+            doc.insert_page_at(*index, *page.clone());
+            doc.set_page_extensions(page.id, extensions.clone());
+            created_pages.push(page.id);
+            Ok(Effect::PageCreated { page: page.id })
+        }
+        Command::RemoveAsset { id } => {
+            let index = doc
+                .assets()
+                .iter()
+                .position(|asset| asset.id == *id)
+                .ok_or_else(|| {
+                    CommandError::on_asset(
+                        CommandErrorCode::PreconditionFailed,
+                        *id,
+                        "the asset is not registered",
+                    )
+                })?;
+            if doc.nodes().any(|node| node.props.asset() == Some(*id)) {
+                return Err(CommandError::on_asset(
+                    CommandErrorCode::PreconditionFailed,
+                    *id,
+                    "the asset is still referenced by a node",
+                ));
+            }
+            let asset = doc.assets()[index].clone();
+            let extensions = doc.asset_extensions(*id).clone();
+            doc.remove_asset(*id);
+            Ok(Effect::AssetRemoved {
+                asset,
+                old_index: index,
+                extensions,
+            })
+        }
+        Command::RestoreAsset {
+            asset,
+            index,
+            extensions,
+        } => {
+            if doc.asset(asset.id).is_some() {
+                return Err(CommandError::on_asset(
+                    CommandErrorCode::IdCollision,
+                    asset.id,
+                    "the asset is already registered",
+                ));
+            }
+            doc.insert_asset_at(*index, asset.clone());
+            doc.set_asset_extensions(asset.id, extensions.clone());
+            Ok(Effect::AssetCreated { asset: asset.id })
+        }
     }
 }
 
@@ -593,10 +756,19 @@ fn apply_delete_node(doc: &mut Document, id: NodeId) -> Result<Effect, CommandEr
         ));
     };
 
+    let mut removed = Vec::new();
+    let mut pending = vec![id];
+    while let Some(current) = pending.pop() {
+        if let Some(node) = doc.node(current) {
+            pending.extend(node.children().iter().rev().copied());
+            removed.push((node.clone(), doc.node_extensions(current).clone()));
+        }
+    }
     detach(doc, id, old_parent, old_page);
     doc.remove_node(id);
 
     Ok(Effect::NodeRemoved {
+        removed,
         node: id,
         old_parent,
         old_index,
@@ -928,11 +1100,37 @@ fn apply_remove_page(doc: &mut Document, id: PageId) -> Result<Effect, CommandEr
         ));
     }
 
-    // `PageCreated` is the effect a page always has; the removal is recorded by
-    // reporting the page as changed, which `diff` already derives.
+    let removed = Box::new(page.clone());
+    let old_index = doc
+        .pages()
+        .iter()
+        .position(|page| page.id == id)
+        .unwrap_or(0);
+    let extensions = doc.page_extensions(id).clone();
     doc.remove_page(id);
+    Ok(Effect::PageRemoved {
+        page: id,
+        removed,
+        old_index,
+        extensions,
+    })
+}
 
-    Ok(Effect::PageRemoved { page: id })
+fn node_positions(document: &Document) -> HashMap<NodeId, (Option<NodeId>, PageId, usize)> {
+    let mut positions = HashMap::with_capacity(document.node_count());
+    for page in document.pages() {
+        for (index, root) in page.roots().iter().enumerate() {
+            positions.insert(*root, (None, page.id, index));
+        }
+    }
+    for parent in document.nodes() {
+        if let Some(page) = document.page_of(parent.id) {
+            for (index, child) in parent.children().iter().enumerate() {
+                positions.insert(*child, (Some(parent.id), page, index));
+            }
+        }
+    }
+    positions
 }
 
 /// Computes the change set by comparing the document before and after a batch.
@@ -947,6 +1145,8 @@ fn diff(
     let mut removed_nodes = BTreeSet::new();
     let mut changed_nodes = BTreeSet::new();
     let mut moved_nodes = BTreeSet::new();
+    let before_positions = node_positions(before);
+    let after_positions = node_positions(after);
 
     for id in before.nodes().map(|n| n.id) {
         if !after.contains_node(id) {
@@ -959,9 +1159,13 @@ fn diff(
                 added_nodes.insert(node.id);
             }
             Some(previous) => {
-                if !node.same_content(previous) {
+                if !node.same_content(previous)
+                    || node.children() != previous.children()
+                    || before.node_extensions(node.id) != after.node_extensions(node.id)
+                {
                     changed_nodes.insert(node.id);
-                } else if node.children() != previous.children() {
+                }
+                if before_positions.get(&node.id) != after_positions.get(&node.id) {
                     moved_nodes.insert(node.id);
                 }
             }
@@ -977,7 +1181,12 @@ fn diff(
                 added_pages.insert(page.id);
             }
             Some(previous) => {
-                if previous.name != page.name || previous.roots() != page.roots() {
+                if previous.name != page.name
+                    || previous.roots() != page.roots()
+                    || before.page_extensions(page.id) != after.page_extensions(page.id)
+                    || before.pages().iter().position(|value| value.id == page.id)
+                        != after.pages().iter().position(|value| value.id == page.id)
+                {
                     changed_pages.insert(page.id);
                 }
             }
@@ -1021,7 +1230,7 @@ fn diff(
             Effect::NodeRemoved { old_page, .. }
             | Effect::NodeMoved { old_page, .. }
             | Effect::NodeReordered { page: old_page, .. }
-            | Effect::PageRemoved { page: old_page } => {
+            | Effect::PageRemoved { page: old_page, .. } => {
                 affected_pages.insert(*old_page);
             }
             _ => {}
@@ -1035,7 +1244,26 @@ fn diff(
         }
     }
 
+    let removed_assets = before
+        .assets()
+        .iter()
+        .filter(|asset| after.asset(asset.id).is_none())
+        .map(|asset| asset.id)
+        .collect();
+    let changed_assets = after
+        .assets()
+        .iter()
+        .filter(|asset| {
+            before.asset(asset.id).is_some_and(|previous| {
+                previous != *asset
+                    || before.asset_extensions(asset.id) != after.asset_extensions(asset.id)
+            })
+        })
+        .map(|asset| asset.id)
+        .collect();
     ChangeSet {
+        changed_assets,
+        removed_assets,
         previous_revision: before.revision(),
         new_revision,
         added_nodes,

@@ -10,9 +10,7 @@
 //! concurrency wraps the engine in its own lock or actor and serializes calls.
 
 use crate::commands::Command;
-use crate::history::{
-    DEFAULT_HISTORY_CAPACITY, History, HistoryEntry, HistoryError, inverse_with_subtree,
-};
+use crate::history::{DEFAULT_HISTORY_CAPACITY, History, HistoryEntry, HistoryError};
 use crate::model::{Document, Revision};
 use crate::transaction::{BatchError, Commit};
 use crate::validation::{ResourceLimits, ValidationErrors, validate};
@@ -176,12 +174,8 @@ impl DocumentEngine {
         expected_revision: Revision,
         commands: &[Command],
     ) -> Result<Commit, BatchError> {
-        self.history.commit_with(
-            &mut self.document,
-            expected_revision,
-            commands,
-            inverse_with_subtree,
-        )
+        self.history
+            .commit(&mut self.document, expected_revision, commands)
     }
 
     /// Whether there is a step to undo.

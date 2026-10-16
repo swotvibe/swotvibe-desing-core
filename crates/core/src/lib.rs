@@ -53,6 +53,7 @@ pub mod commands;
 pub mod engine;
 pub mod geometry;
 pub mod history;
+mod history_size;
 pub mod ids;
 pub mod model;
 pub mod props;
@@ -64,7 +65,7 @@ pub use commands::{Command, CommandError, CommandErrorCode, NodePlacement, Posit
 pub use engine::DocumentEngine;
 pub use geometry::{GeometryError, Scalar, Size, Transform};
 pub use history::{
-    DEFAULT_HISTORY_CAPACITY, History, HistoryEntry, HistoryError, inverse_entry,
+    DEFAULT_HISTORY_CAPACITY, History, HistoryEntry, HistoryError, HistoryStatus, inverse_entry,
     inverse_with_subtree,
 };
 pub use ids::{AssetId, DocumentId, IdError, IdKind, NodeId, PageId};
@@ -75,7 +76,9 @@ pub use props::{
     TextDirection, TextProps,
 };
 pub use snapshot::Snapshot;
-pub use transaction::{BatchError, ChangeSet, Commit, Effect, apply_batch, apply_batch_at_current};
+pub use transaction::{
+    BatchError, ChangeSet, CommandPlan, Commit, Effect, apply_batch, apply_batch_at_current,
+};
 pub use validation::{
     ElementRef, ErrorCode, ResourceLimits, RevisionConflict, ValidationError, ValidationErrors,
     validate, validate_shape, validate_untrusted,

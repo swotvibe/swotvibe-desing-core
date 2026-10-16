@@ -23,7 +23,6 @@
 use crate::commands::{Command, CommandError, CommandErrorCode, NodePlacement, Position};
 use crate::ids::{NodeId, PageId};
 use crate::model::{Document, Node, Page, Revision};
-use crate::props::NodeProps;
 use crate::transaction::{BatchError, Commit, Effect, apply_batch};
 
 #[cfg(test)]
@@ -53,6 +52,19 @@ impl HistoryEntry {
     #[must_use]
     pub fn inverse(&self) -> &[Command] {
         &self.inverse
+    }
+
+    /// Estimated bytes retained by this inverse, including nested owned data.
+    #[must_use]
+    pub fn estimated_bytes(&self) -> usize {
+        self.inverse.iter().fold(
+            std::mem::size_of::<Self>().saturating_add(
+                self.inverse
+                    .capacity()
+                    .saturating_mul(std::mem::size_of::<Command>()),
+            ),
+            |total, command| total.saturating_add(crate::history_size::command_heap(command)),
+        )
     }
 
     /// Whether this entry would change nothing when replayed.
@@ -100,9 +112,28 @@ pub enum HistoryError {
 /// step is the standard trade — a user can undo the recent past, not the whole
 /// session — and it is recorded here rather than left implicit.
 ///
-/// 256 steps is a comfortable working depth for a design tool while keeping the
-/// worst-case retained command count bounded under a million-node document.
+/// 256 is the existing compatibility default, not a measured memory budget.
+/// A host may configure a separate estimated-byte limit.
 pub const DEFAULT_HISTORY_CAPACITY: usize = 256;
+
+/// Observable history retention; estimates do not bound temporary transaction memory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HistoryStatus {
+    /// Available undo steps.
+    pub undo_depth: usize,
+    /// Available redo steps.
+    pub redo_depth: usize,
+    /// Maximum total retained steps, or no configured limit.
+    pub step_capacity: Option<usize>,
+    /// Maximum estimated retained bytes, or no configured limit.
+    pub byte_capacity: Option<usize>,
+    /// Current estimate for both stacks.
+    pub estimated_bytes: usize,
+    /// Whole entries evicted by retention limits since the last clear.
+    pub evicted_entries: usize,
+    /// Whether the latest committed step was kept at its commit boundary.
+    pub last_commit_retained: Option<bool>,
+}
 
 /// Undo/redo state for one document session.
 ///
@@ -111,14 +142,17 @@ pub const DEFAULT_HISTORY_CAPACITY: usize = 256;
 /// clears the redo stack, because that branch of the timeline is no longer
 /// reachable.
 ///
-/// The `done` stack is bounded by [`History::capacity`]; once full, the oldest
-/// entry is discarded. The `undone` stack cannot exceed `done`'s depth, since
-/// every redoable entry was pushed from it.
+/// Both stacks together are bounded by [`History::capacity`] and an optional
+/// retained-byte estimate. Eviction removes whole entries, oldest past first
+/// and then the furthest future, keeping the nearest replayable history.
 #[derive(Debug, Clone)]
 pub struct History {
     done: Vec<HistoryEntry>,
     undone: Vec<HistoryEntry>,
     capacity: Option<usize>,
+    byte_capacity: Option<usize>,
+    evicted_entries: usize,
+    last_commit_retained: Option<bool>,
 }
 
 impl Default for History {
@@ -135,6 +169,9 @@ impl History {
             done: Vec::new(),
             undone: Vec::new(),
             capacity: Some(DEFAULT_HISTORY_CAPACITY),
+            byte_capacity: None,
+            evicted_entries: 0,
+            last_commit_retained: None,
         }
     }
 
@@ -148,6 +185,9 @@ impl History {
             done: Vec::new(),
             undone: Vec::new(),
             capacity: None,
+            byte_capacity: None,
+            evicted_entries: 0,
+            last_commit_retained: None,
         }
     }
 
@@ -161,10 +201,13 @@ impl History {
             done: Vec::new(),
             undone: Vec::new(),
             capacity: Some(capacity),
+            byte_capacity: None,
+            evicted_entries: 0,
+            last_commit_retained: None,
         }
     }
 
-    /// The maximum number of undoable steps retained, or `None` when unbounded.
+    /// The maximum total retained undo and redo steps, or `None` when unbounded.
     #[must_use]
     pub const fn capacity(&self) -> Option<usize> {
         self.capacity
@@ -179,16 +222,55 @@ impl History {
         self.trim();
     }
 
-    /// Drops the oldest recorded steps until `done` is within capacity.
-    ///
-    /// Never touches `undone`: those steps still have to be re-applied before
-    /// the timeline is coherent, and they were already counted against the
-    /// bound when they were recorded.
+    /// Sets an optional byte estimate limit, immediately trimming both stacks.
+    pub fn set_byte_capacity(&mut self, capacity: Option<usize>) {
+        self.byte_capacity = capacity;
+        self.trim();
+    }
+
+    /// The current retention settings and actual retained history.
+    #[must_use]
+    pub fn status(&self) -> HistoryStatus {
+        HistoryStatus {
+            undo_depth: self.done.len(),
+            redo_depth: self.undone.len(),
+            step_capacity: self.capacity,
+            byte_capacity: self.byte_capacity,
+            estimated_bytes: self.estimated_bytes(),
+            evicted_entries: self.evicted_entries,
+            last_commit_retained: self.last_commit_retained,
+        }
+    }
+
+    /// Estimated owned storage in both undo and redo entries.
+    #[must_use]
+    pub fn estimated_bytes(&self) -> usize {
+        self.done
+            .iter()
+            .chain(&self.undone)
+            .fold(0usize, |total, entry| {
+                total.saturating_add(entry.estimated_bytes())
+            })
+    }
+
     fn trim(&mut self) {
-        if let Some(capacity) = self.capacity {
-            while self.done.len() > capacity {
-                self.done.remove(0);
-            }
+        let mut bytes = self.estimated_bytes();
+        while self
+            .capacity
+            .is_some_and(|max| self.done.len().saturating_add(self.undone.len()) > max)
+            || self.byte_capacity.is_some_and(|max| bytes > max)
+        {
+            // Oldest past first, then furthest future: the next undo/redo stays contiguous.
+            let removed = if !self.done.is_empty() {
+                self.done.remove(0)
+            } else if !self.undone.is_empty() {
+                self.undone.remove(0)
+            } else {
+                break;
+            };
+            drop(removed);
+            bytes = self.estimated_bytes();
+            self.evicted_entries = self.evicted_entries.saturating_add(1);
         }
     }
 
@@ -239,6 +321,8 @@ impl History {
     pub fn clear(&mut self) {
         self.done.clear();
         self.undone.clear();
+        self.evicted_entries = 0;
+        self.last_commit_retained = None;
     }
 
     /// Applies a batch and records it as one undoable step.
@@ -247,10 +331,8 @@ impl History {
     /// command (§6.4). The batch is applied first; only a committed batch is
     /// recorded, so a rejected batch leaves the timeline untouched (§6.2).
     ///
-    /// A batch that *deletes* a node is recorded, but its inverse cannot be
-    /// complete: an effect does not carry the removed node's kind or its
-    /// subtree. Use [`History::commit_with`] and pass [`inverse_with_subtree`]
-    /// when a delete must be undoable in full.
+    /// Effects retain the state at each removal, including subtrees and metadata,
+    /// so compound batches can be undone without guessing from the pre-batch tree.
     ///
     /// # Errors
     ///
@@ -261,17 +343,19 @@ impl History {
         expected_revision: Revision,
         commands: &[Command],
     ) -> Result<Commit, BatchError> {
-        self.commit_with(doc, expected_revision, commands, |_, commit| {
-            inverse_entry(commit)
-        })
+        let commit = apply_batch(doc, expected_revision, commands)?;
+        self.undone.clear();
+        self.done.push(inverse_entry(&commit));
+        self.trim();
+        self.last_commit_retained = Some(!self.done.is_empty());
+        Ok(commit)
     }
 
     /// Applies a batch and records it using a caller-supplied inverse builder.
     ///
     /// `build` receives the document as it was before the batch and the
-    /// committed batch. This is the general entry point; pass
-    /// [`inverse_with_subtree`] to make a delete undoable, because only the
-    /// pre-batch document knows what the deleted subtree looked like.
+    /// committed batch. Use this only when a custom inverse builder needs the
+    /// pre-batch document; [`History::commit`] needs no additional snapshot.
     ///
     /// # Errors
     ///
@@ -288,6 +372,7 @@ impl History {
         self.undone.clear();
         self.done.push(build(&before, &commit));
         self.trim();
+        self.last_commit_retained = Some(!self.done.is_empty());
         Ok(commit)
     }
 
@@ -333,6 +418,7 @@ impl History {
             }),
         }
         self.trim();
+        self.last_commit_retained = Some(!self.done.is_empty());
         Ok(commit)
     }
 
@@ -404,20 +490,18 @@ impl History {
     /// becomes available again once the blocking edit is itself undone.
     pub fn undo(&mut self, doc: &mut Document) -> Result<Commit, HistoryError> {
         let entry = self.done.pop().ok_or(HistoryError::NothingToUndo)?;
-        let before = doc.clone();
         match replay(doc, &entry) {
             Ok(commit) => {
                 // The redo entry describes how to get forward again, which is
-                // the inverse of the inverse just applied. It is built from the
-                // pre-undo document because a `NodeRemoved` effect does not
-                // carry the removed kind or subtree: only that document can
-                // rebuild them.
-                self.undone.push(inverse_with_subtree(&before, &commit));
+                // the inverse of the inverse just applied. Every removal effect
+                // carries its precise state, so no pre-undo snapshot is needed.
+                self.undone.push(inverse_entry(&commit));
                 // Undo is an edit forward, so the exposed step must now be
                 // validated against the revision this undo produced.
                 if let Some(head) = self.done.last_mut() {
                     head.revision = commit.revision();
                 }
+                self.trim();
                 Ok(commit)
             }
             Err(error) => {
@@ -437,15 +521,15 @@ impl History {
         let Some(entry) = self.undone.pop() else {
             return Err(HistoryError::NothingToRedo);
         };
-        let before = doc.clone();
         match replay(doc, &entry) {
             Ok(commit) => {
-                self.done.push(inverse_with_subtree(&before, &commit));
+                self.done.push(inverse_entry(&commit));
                 // The exposed redo step must be validated against the revision
                 // this redo produced, not the one it originally recorded.
                 if let Some(head) = self.undone.last_mut() {
                     head.revision = commit.revision();
                 }
+                self.trim();
                 Ok(commit)
             }
             Err(error) => {
@@ -498,39 +582,63 @@ fn merge_entries(older: HistoryEntry, newer: HistoryEntry) -> HistoryEntry {
 /// nested batch undo as a unit: a child's inverse must run before its parent's,
 /// while the child is still reachable.
 fn inverse_commands(effects: &[Effect]) -> Vec<Command> {
-    let commands: Vec<Command> = effects.iter().rev().filter_map(effect_inverse).collect();
-    drop_redundant_deletes(commands)
-}
-
-/// Drops deletes whose node an earlier delete already re-removes.
-///
-/// A `DeleteNode` inverse removes the whole subtree, so an inverse built from
-/// records that mention both a frame and a child would try to delete the child
-/// after the frame had already taken it. Keeping only the outermost delete per
-/// node preserves the order the effects recorded.
-fn drop_redundant_deletes(commands: Vec<Command>) -> Vec<Command> {
-    let mut seen: Vec<NodeId> = Vec::new();
-    let mut kept: Vec<Command> = Vec::new();
-    for command in commands {
-        if let Command::DeleteNode { id } = &command {
-            if seen.contains(id) {
-                continue;
+    let mut commands = Vec::new();
+    for effect in effects.iter().rev() {
+        if let Effect::NodeRemoved {
+            removed,
+            old_parent,
+            old_index,
+            old_page,
+            node,
+        } = effect
+        {
+            let parents: std::collections::HashMap<NodeId, (NodeId, usize)> = removed
+                .iter()
+                .flat_map(|(parent, _)| {
+                    parent
+                        .children()
+                        .iter()
+                        .enumerate()
+                        .map(move |(index, child)| (*child, (parent.id, index)))
+                })
+                .collect();
+            for (value, extensions) in removed {
+                let parent = if value.id == *node {
+                    placement(*old_parent, *old_index, *old_page)
+                } else if let Some((parent, index)) = parents.get(&value.id) {
+                    placement(Some(*parent), *index, *old_page)
+                } else {
+                    continue;
+                };
+                let mut value = value.clone();
+                value.children_mut().clear();
+                value.children_mut().shrink_to_fit();
+                commands.push(Command::RestoreNode {
+                    node: Box::new(value),
+                    parent,
+                    extensions: extensions.clone(),
+                });
             }
-            seen.push(*id);
+        } else if let Some(command) = effect_inverse(effect) {
+            commands.push(command);
         }
-        kept.push(command);
     }
-    kept
+    commands
 }
 
-/// Inverts one effect. Returns `None` for effects that need the document to
-/// invert, which [`inverse_with_subtree`] supplies.
+/// Inverts a single-command effect. Subtree removal expands separately.
 fn effect_inverse(effect: &Effect) -> Option<Command> {
     match effect {
         Effect::PageCreated { page } => Some(Command::RemovePage { id: *page }),
-        Effect::PageRemoved { page } => Some(Command::CreatePage {
-            id: *page,
-            name: String::new(),
+        Effect::PageRemoved {
+            removed,
+            old_index,
+            extensions,
+            ..
+        } => Some(Command::RestorePage {
+            page: removed.clone(),
+            index: *old_index,
+            extensions: extensions.clone(),
         }),
         Effect::NodeCreated { node, .. } => Some(Command::DeleteNode { id: *node }),
         Effect::NodeMoved {
@@ -559,16 +667,18 @@ fn effect_inverse(effect: &Effect) -> Option<Command> {
             page: *page,
             order: old_order.clone(),
         }),
-        // A removed node's kind and subtree are not in the effect. A plain
-        // inverse cannot restore it, and guessing (say, re-deleting it) would be
-        // silently wrong. `inverse_with_subtree` is the variant that can, and
-        // it handles this effect before reaching here.
+        // One removal expands to multiple restoration commands in inverse_commands.
         Effect::NodeRemoved { .. } => None,
-        // Assets are import-time, document-scoped metadata with no removal
-        // command in M0. There is nothing to undo, and inventing a remove
-        // command purely to satisfy the match would widen the write surface for
-        // no user-visible behaviour.
-        Effect::AssetCreated { .. } => None,
+        Effect::AssetCreated { asset } => Some(Command::RemoveAsset { id: *asset }),
+        Effect::AssetRemoved {
+            asset,
+            old_index,
+            extensions,
+        } => Some(Command::RestoreAsset {
+            asset: asset.clone(),
+            index: *old_index,
+            extensions: extensions.clone(),
+        }),
     }
 }
 
@@ -586,13 +696,11 @@ fn placement(parent: Option<NodeId>, index: usize, page: PageId) -> NodePlacemen
     }
 }
 
-/// An entry that restores deleted subtrees, not just their roots.
+/// Compatibility inverse builder accepting the pre-batch document.
 ///
-/// [`inverse_entry`] can rebuild a page or a node identity from the effect
-/// alone, but a `NodeRemoved` effect does not carry the removed node's kind or
-/// its descendants. When the caller still holds the document as it was before
-/// the batch, this produces an inverse that restores every descendant with its
-/// kind and name intact.
+/// Deletion effects now retain the exact state at removal, including changes
+/// earlier in the batch. `before` is kept for source compatibility; new callers
+/// can use [`inverse_entry`] directly.
 ///
 /// # Examples
 ///
@@ -637,75 +745,10 @@ fn placement(parent: Option<NodeId>, index: usize, page: PageId) -> NodePlacemen
 /// assert_eq!(doc.node(child).unwrap().kind, NodeKind::Text);
 /// ```
 #[must_use]
-pub fn inverse_with_subtree(before: &Document, commit: &Commit) -> HistoryEntry {
-    let mut inverse: Vec<Command> = Vec::new();
-    for effect in commit.effects().iter().rev() {
-        match effect {
-            Effect::NodeRemoved {
-                node,
-                old_parent,
-                old_index,
-                old_page,
-            } => match before.node(*node) {
-                Some(removed) => {
-                    inverse.push(Command::CreateNode {
-                        id: *node,
-                        kind: removed.kind,
-                        name: removed.name.clone(),
-                        parent: placement(*old_parent, *old_index, *old_page),
-                    });
-                    push_props(removed, &mut inverse);
-                    collect_subtree(before, *node, &mut inverse);
-                }
-                None => inverse.extend(effect_inverse(effect)),
-            },
-            other => inverse.extend(effect_inverse(other)),
-        }
-    }
-    HistoryEntry {
-        revision: commit.revision(),
-        inverse,
-        coalesced: false,
-    }
-}
-
-/// Appends one create per descendant of `node`, in pre-order.
-fn collect_subtree(doc: &Document, node: NodeId, out: &mut Vec<Command>) {
-    let Some(parent) = doc.node(node) else {
-        return;
-    };
-    for (index, child) in parent.children().iter().enumerate() {
-        let Some(child_node) = doc.node(*child) else {
-            continue;
-        };
-        out.push(Command::CreateNode {
-            id: *child,
-            kind: child_node.kind,
-            name: child_node.name.clone(),
-            parent: placement(Some(node), index, uuid_placeholder_page()),
-        });
-        push_props(child_node, out);
-        collect_subtree(doc, *child, out);
-    }
-}
-
-/// Restores a recreated node's properties when they differ from the defaults.
-fn push_props(node: &Node, out: &mut Vec<Command>) {
-    if node.props != NodeProps::default_for(node.kind) {
-        out.push(Command::SetNodeProps {
-            id: node.id,
-            props: Box::new(node.props.clone()),
-        });
-    }
-}
-
-/// A placeholder page for a child placement.
-///
-/// A child placement names only its parent; the page argument exists because
-/// the placement type is shared with root placements. Any value works, and
-/// every caller passes the same one so the command compares equal across runs.
-fn uuid_placeholder_page() -> PageId {
-    PageId::from_uuid(uuid::Uuid::nil())
+pub fn inverse_with_subtree(_before: &Document, commit: &Commit) -> HistoryEntry {
+    // Compatibility entry point. Removal effects now own the precise state at
+    // removal, so earlier operations in the batch can no longer invalidate undo.
+    inverse_entry(commit)
 }
 
 /// Checks that a rebuilt tree preserves the identities a later effect depends
@@ -1569,17 +1612,5 @@ mod tests {
         let text = out_of_sync.to_string();
         assert!(text.contains('3'), "{text}");
         assert!(text.contains('5'), "{text}");
-    }
-
-    #[test]
-    fn redundant_deletes_for_one_node_are_dropped() {
-        let id = NodeId::new();
-        let commands = vec![Command::DeleteNode { id }, Command::DeleteNode { id }];
-        assert_eq!(drop_redundant_deletes(commands).len(), 1);
-    }
-
-    #[test]
-    fn a_placeholder_page_is_stable_across_calls() {
-        assert_eq!(uuid_placeholder_page(), uuid_placeholder_page());
     }
 }

@@ -31,7 +31,7 @@
 use std::fmt;
 
 use crate::ids::{AssetId, NodeId, PageId};
-use crate::model::NodeKind;
+use crate::model::{Asset, Extensions, Node, NodeKind, Page};
 use crate::props::NodeProps;
 
 /// The stable, machine-readable code for a command failure.
@@ -260,6 +260,38 @@ pub enum Command {
         /// Where the new node goes.
         parent: NodePlacement,
     },
+    /// Restores one removed node, with its preserved metadata. Children are restored separately.
+    RestoreNode {
+        /// The node value; its child list must be empty.
+        node: Box<Node>,
+        /// Its original placement.
+        parent: NodePlacement,
+        /// Unknown fields retained by the file format.
+        extensions: Extensions,
+    },
+    /// Restores an empty page at its original position.
+    RestorePage {
+        /// The empty page value.
+        page: Box<Page>,
+        /// Its position among pages.
+        index: usize,
+        /// Unknown fields retained by the file format.
+        extensions: Extensions,
+    },
+    /// Removes an unreferenced asset registration.
+    RemoveAsset {
+        /// The asset identity.
+        id: AssetId,
+    },
+    /// Restores an asset registration at its original position.
+    RestoreAsset {
+        /// The asset value.
+        asset: Asset,
+        /// Its position among assets.
+        index: usize,
+        /// Unknown fields retained by the file format.
+        extensions: Extensions,
+    },
     /// Removes a node and its whole subtree.
     DeleteNode {
         /// The node to remove.
@@ -336,6 +368,10 @@ impl Command {
             Self::ReorderNode { .. } => "reorder-node",
             Self::ReorderTo { .. } => "reorder-to",
             Self::RemovePage { .. } => "remove-page",
+            Self::RestoreNode { .. } => "restore-node",
+            Self::RestorePage { .. } => "restore-page",
+            Self::RemoveAsset { .. } => "remove-asset",
+            Self::RestoreAsset { .. } => "restore-asset",
         }
     }
 
@@ -354,7 +390,12 @@ impl Command {
             | Self::RenameNode { id, .. }
             | Self::SetNodeProps { id, .. }
             | Self::ReorderNode { id, .. } => Some(*id),
-            Self::ReorderTo { .. } | Self::RemovePage { .. } => None,
+            Self::RestoreNode { node, .. } => Some(node.id),
+            Self::ReorderTo { .. }
+            | Self::RemovePage { .. }
+            | Self::RestorePage { .. }
+            | Self::RemoveAsset { .. }
+            | Self::RestoreAsset { .. } => None,
         }
     }
 }

@@ -6,6 +6,7 @@ members = [
     "crates/layout",
     "crates/text",
     "crates/render",
+    "crates/app",
     "crates/tools",
 ]
 
@@ -36,6 +37,7 @@ swotvibe-format = { path = "crates/format", version = "0.1.0" }
 swotvibe-layout = { path = "crates/layout", version = "0.1.0" }
 swotvibe-text = { path = "crates/text", version = "0.1.0" }
 swotvibe-render = { path = "crates/render", version = "0.1.0" }
+swotvibe-app = { path = "crates/app", version = "0.1.0" }
 [profile.release]
 lto = "thin"
 codegen-units = 1

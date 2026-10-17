@@ -1,0 +1,21 @@
+[package]
+name = "swotvibe-app"
+description = "Application service: editor session, IPC DTOs, and typed errors over the core kernel."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+swotvibe-core.workspace = true
+swotvibe-format.workspace = true
+swotvibe-layout.workspace = true
+swotvibe-render.workspace = true
+swotvibe-text.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+swotvibe-render.workspace = true
+serde_json.workspace = true

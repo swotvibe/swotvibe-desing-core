@@ -33,6 +33,38 @@ fn engine() -> ParleyTextEngine {
 }
 
 #[test]
+fn variable_font_outlines_follow_shaped_weight_and_keep_separate_cache_entries() {
+    let engine = engine();
+    for (family, text) in [(LATIN_FAMILY, "H"), (ARABIC_FAMILY, "م")] {
+        let regular = engine
+            .shape(&request(text, family, 100.0))
+            .expect("regular");
+        let mut bold_request = request(text, family, 100.0);
+        bold_request.font_weight = 900;
+        let bold = engine.shape(&bold_request).expect("bold");
+        let regular = &regular.lines[0].runs[0];
+        let bold = &bold.lines[0].runs[0];
+        assert_ne!(regular.normalized_coords, bold.normalized_coords);
+        let read = |run: &swotvibe_text::ShapedRun| {
+            engine
+                .outline_at(
+                    run.font,
+                    run.glyphs[0].id,
+                    run.font_size,
+                    &run.normalized_coords,
+                )
+                .expect("outline")
+                .expect("ink")
+        };
+        let regular_outline = read(regular);
+        let bold_outline = read(bold);
+        assert_ne!(regular_outline.commands, bold_outline.commands);
+        assert!(Arc::ptr_eq(&regular_outline, &read(regular)));
+        assert!(Arc::ptr_eq(&bold_outline, &read(bold)));
+    }
+}
+
+#[test]
 fn latin_text_shapes_into_positioned_glyphs() {
     let engine = engine();
     let shaped = engine

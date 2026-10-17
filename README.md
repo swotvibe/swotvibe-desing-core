@@ -19,12 +19,12 @@ rasterized by one renderer, and compared against committed references.
 | 5. An edit with undo, redo, and a round trip | Covered |
 | 6. A batch that fails at its last command leaves no trace | Covered |
 
-The reference images are **visually approved**: both fingerprints record
-`reviewed` as the project owner's approval of visual formatting and text
-orientation on 2026-10-06, so the M0 visual gate is closed. What stays open is
-the engine choice — no `DEC-LAYOUT`, `DEC-TEXT-AR`, or `DEC-RENDERER` decision
-is closed, and the three backends remain provisional, chosen so the slice can
-pass through real adapters rather than selected.
+The M0 reference images were regenerated on 2026-10-16 after correcting
+variable-font outlines and image fitting. Their current review status is
+**pending human review**; the owner's 2026-10-06 approval applies to the earlier
+pixels. The accepted layered GTA VI composition is a separate authoring
+acceptance case. Layout, text and render backend choices remain provisional
+(ADR-0006 through ADR-0008).
 
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
@@ -42,8 +42,8 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 ## Workspace
 
 The [2026-10-16 core review](./docs/architecture/core-foundation-review-2026-10-16.md)
-fixes compound-batch undo, preserves removed page/node/asset metadata, adds
-validated command planning, and provides configurable history retention across
+fixes compound-batch undo, preserves removed page/node/asset metadata, stages
+application commands in order, and adds configurable history retention across
 both undo and redo. The existing 256-step default remains; the estimated-byte
 ceiling is unconfigured until representative workloads justify a host policy.
 
@@ -55,6 +55,7 @@ ceiling is unconfigured until representative workloads justify a host policy.
 | `swotvibe-layout` | Product layout adapter | Implemented on Taffy, temporary |
 | `swotvibe-text` | Text measurement and shaping adapter | Implemented on Parley and Skrifa, temporary |
 | `swotvibe-render` | Scene extraction and rendering adapter | Implemented on vello_cpu, temporary |
+| `swotvibe-app` | Headless editor session, typed commands and views, native bundles, layout and preview | Implemented with atomic authoring and round-trip acceptance tests |
 
 The static Arabic editor sample exercises a 1440×900 screen, mixed Arabic/Latin
 text, seven SVG icons, a generated PNG product image, and nested scene/layer
@@ -66,6 +67,28 @@ reference, not an approved product design.
 Adapters and tools depend on `core`; `core` does not depend on them. The text
 and layout crates are the only ones that know their backend's types, and those
 types never reach the document or the file schema.
+
+## Native authoring foundation
+
+`main` carries the headless kernel, application service, file format and render
+adapters. `UI` adds the Vue/Tauri desktop editor and incorporates `main` updates.
+Shared Rust code and acceptance fixtures are kept identical across the branches.
+
+`EditorSession::apply` supports atomic creation, text styling and image binding
+against a revision-tagged document. The native authoring acceptance test starts
+with an empty page and seven prepared resources, executes 109 public commands,
+and reproduces the 22-layer composition with seven editable text layers. It
+checks undo/redo, asset preservation and identical rendering after save/reopen.
+See the [implementation contract](./docs/architecture/agent-step-1-native-authoring.md).
+
+```sh
+cargo test -p swotvibe-app --test native_authoring_poster --locked
+```
+
+The test writes a native `.swv`, preview and report under
+`tests/golden/native-authoring/out/`. `.swv` is the development host's bundle
+extension, not a newly published stable format. Generated delivery files under
+`output/` stay local. No model SDK or design-agent runtime is installed.
 
 ## Pinned fonts
 
@@ -124,4 +147,5 @@ the latest passing evidence.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Source code: MIT. See [LICENSE](./LICENSE). Third-party image assets retain
+their original attribution; see [native authoring fixture provenance](./tests/fixtures/native-authoring/README.md).

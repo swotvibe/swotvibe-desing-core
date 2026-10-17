@@ -24,9 +24,12 @@ Rules:
 The input is `tests/fixtures/m0-sample-v2.json`, and the test that produces and
 compares them is `crates/tools/tests/m0_vertical_slice.rs`.
 
-**Review status: approved by the project owner on 2026-10-06.** The `reviewed`
-field in `m0-sample.fingerprint.json` records that verdict instead of leaving it
-implicit. The approval covers visual formatting and text orientation; it does
+**Current review status: pending after the 2026-10-16 adapter v2 correction.**
+The renderer now draws the exact variable-font instance selected by shaping and
+fits images into their node boxes. References were regenerated without changing
+the pixel tolerance. The owner's 2026-10-06 approval applied to the previous
+render; it is not carried forward as approval of these new pixels.
+The earlier review covered visual formatting and text orientation; it did
 not select a layout or render backend. What the review covers:
 
 - The card, its rounded corners, and its 1-unit stroke are where the report says.
@@ -49,9 +52,10 @@ Input: `tests/fixtures/m0-editor-ui-v2.json`; generator:
 `python tests/fixtures/generate_m0_editor_ui.py`; integration test:
 `crates/tools/tests/m0_editor_ui.rs`. Regenerate with
 `SWOTVIBE_UPDATE_EDITOR_GOLDEN=1 cargo test -p swotvibe-tools --test m0_editor_ui`.
-Its `reviewed` field records the project owner's approval of visual formatting
-and text orientation on 2026-10-06, which makes this render a usable comparison
-reference. That approval does not make the generated screen an accepted product
+Its current `reviewed` field is null: the adapter v2 reference regenerated on
+2026-10-16 is pending human review. The project owner's 2026-10-06 approval of
+the previous pixels is retained in Git history and is not applied to this image.
+That earlier approval did not make the generated screen an accepted product
 design; the product questions in `../../docs/product/README.md` stay open.
 Geometry is compared exactly as serialized and pixels use the same per-channel
 tolerance of 2.

@@ -291,8 +291,19 @@ fn draw_image(
         sampler: ImageSampler::default(),
     };
     context.set_paint(brush);
-    context.set_transform(affine_of(world).then_scale(pixel_scale));
-    context.fill_rect(&KurboRect::new(0.0, 0.0, size.0, size.1));
+    // Paint and geometry share image pixel space, then fit that space into
+    // this node's box before applying the parent's transform and preview scale.
+    let fit = Affine::scale_non_uniform(
+        size.0 / f64::from(image.width()),
+        size.1 / f64::from(image.height()),
+    );
+    context.set_transform((affine_of(world) * fit).then_scale(pixel_scale));
+    context.fill_rect(&KurboRect::new(
+        0.0,
+        0.0,
+        f64::from(image.width()),
+        f64::from(image.height()),
+    ));
 }
 
 impl VelloCpuRenderer {
@@ -352,7 +363,7 @@ impl VelloCpuRenderer {
                 for glyph in &run.glyphs {
                     let Some(outline) = self
                         .text
-                        .outline(run.font, glyph.id, run.font_size)
+                        .outline_at(run.font, glyph.id, run.font_size, &run.normalized_coords)
                         .map_err(|error| RenderError::Outline {
                             node: node.id,
                             message: error.to_string(),

@@ -358,9 +358,11 @@ fn an_image_node_without_pixels_is_reported_and_skipped() {
 fn png_and_svg_assets_are_decoded_and_painted_inside_image_nodes() {
     let png_id = AssetId::new();
     let svg_id = AssetId::new();
-    let png = swotvibe_render::RenderedImage::from_rgba(8, 8, [255, 0, 0, 255].repeat(64))
-        .expect("a red PNG image");
-    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><rect width="8" height="8" fill="#0000ff"/></svg>"##;
+    // Different intrinsic dimensions exercise both enlargement and reduction.
+    let png =
+        swotvibe_render::RenderedImage::from_rgba(2, 4, [255, 0, 0, 255, 0, 255, 0, 255].repeat(4))
+            .expect("a red PNG image");
+    let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16" viewBox="0 0 32 16"><rect width="32" height="16" fill="#0000ff"/></svg>"##;
 
     let mut document = Document::new();
     let page = PageId::new();
@@ -456,18 +458,21 @@ fn png_and_svg_assets_are_decoded_and_painted_inside_image_nodes() {
             &snapshot,
             page,
             &LayoutOptions {
-                page_size: Some((16.0, 8.0)),
+                page_size: Some((20.0, 12.0)),
             },
         )
         .expect("layout should succeed");
     let rendered = VelloCpuRenderer::new(text)
         .with_assets(assets)
-        .render(&snapshot, page, &layout, &config(16, 8, 1.0))
+        .render(&snapshot, page, &layout, &config(40, 24, 2.0))
         .expect("render should succeed");
 
     assert!(rendered.diagnostics.is_empty());
-    assert_eq!(rendered.image.pixel(4, 4), Some([255, 0, 0, 255]));
-    assert_eq!(rendered.image.pixel(12, 4), Some([0, 0, 255, 255]));
+    assert_eq!(rendered.image.pixel(2, 8), Some([255, 0, 0, 255]));
+    assert_eq!(rendered.image.pixel(13, 8), Some([0, 255, 0, 255]));
+    assert_eq!(rendered.image.pixel(24, 8), Some([0, 0, 255, 255]));
+    assert_eq!(rendered.image.pixel(33, 8), Some([255, 255, 255, 255]));
+    assert_eq!(rendered.image.pixel(8, 17), Some([255, 255, 255, 255]));
 }
 
 #[test]

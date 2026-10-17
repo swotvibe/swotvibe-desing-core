@@ -410,6 +410,9 @@ pub struct ShapedRun {
     pub font: FontKey,
     /// The size the run was shaped at, in design units.
     pub font_size: f64,
+    /// Variable-font location used by the shaper, in signed F2DOT14 units.
+    /// Outlines must use this same location to match the measured glyphs.
+    pub normalized_coords: Vec<i16>,
     /// Whether the run's text is right-to-left.
     pub is_rtl: bool,
     /// The styles the backend synthesized for this run.
@@ -525,6 +528,26 @@ pub trait TextLayoutEngine {
         glyph: u16,
         font_size: f64,
     ) -> Result<Option<Arc<GlyphOutline>>, TextError>;
+
+    /// Reads an outline at the exact variable-font location of a shaped run.
+    ///
+    /// # Errors
+    /// Returns an error when the adapter cannot draw a non-default location,
+    /// or for the same errors as [`Self::outline`].
+    fn outline_at(
+        &self,
+        font: FontKey,
+        glyph: u16,
+        font_size: f64,
+        normalized_coords: &[i16],
+    ) -> Result<Option<Arc<GlyphOutline>>, TextError> {
+        if normalized_coords.iter().any(|coord| *coord != 0) {
+            return Err(TextError::Backend {
+                message: "this adapter cannot draw variable-font locations".to_owned(),
+            });
+        }
+        self.outline(font, glyph, font_size)
+    }
 }
 
 #[cfg(test)]

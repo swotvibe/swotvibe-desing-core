@@ -1,15 +1,30 @@
 # Product documentation
 
-**Product validation is not documented yet.** The target customer, paid task,
-and revenue hypothesis are still unknown. Technical milestones cannot by
-themselves demonstrate commercial viability; performance and resource targets
-remain undetermined until the intended workflow and reference files are known.
+**Product direction confirmed by the owner on 2026-10-16:** a professional,
+intelligent design agent capable of competing with expert designers. The first
+specialty is marketing designs and social media posts. See the
+[product brief and evaluation plan](./design-agent-brief.md).
+
+**Product validation is not documented yet.** The first specialty is known;
+the specific customer segment, paid workflow and revenue hypothesis still need
+validation. Expert-level quality is a target to measure, not an achieved claim.
+Technical milestones alone do not establish it. Representative briefs, licensed
+brand assets and independently reviewed outputs are still required.
 
 Add these inputs before selecting product-level performance or schema goals:
 
 - Product requirements and target customer
 - Design goals and editor feature set for the first schema
 - Reference design files used for evaluation
+
+## Foundation prerequisite
+
+The owner's 2026-10-16 direction is to finish the foundations, including core,
+before expanding the design agent. Current work prioritizes document integrity,
+ordered atomic commands, reversible compound edits, bounded history retention
+and file round trips. See the [core review](../architecture/core-foundation-review-2026-10-16.md)
+for verified fixes and remaining gates; this is not a claim that the full design
+engine or expert-level agent is complete.
 
 ## What the engineering side can state today
 
@@ -38,14 +53,17 @@ customer document:
   text nodes (Latin and Arabic), and a second shape.
 - `tests/fixtures/m0-editor-ui-v2.json` — a generated Arabic-first editor
   screen with nested layer content, SVG icons, and a PNG product illustration.
+- `tests/fixtures/native-authoring/` — an empty-page seed, public authoring
+  commands, prepared image resources and the accepted layered composition
+  used to verify execution, not expert-level autonomous design.
 - `tests/fixtures/document-v2-styled.json` — one node of every kind with
   explicit properties, including an image reference.
 - `tests/fixtures/document-v1-minimal.json` — a v1 file, used as the migration
   input.
 - `tests/golden/m0-sample.*` — the rendered reference and its layout report.
 - `tests/golden/m0-editor-ui.*` — the editor screen render and geometry report;
-  its `reviewed` field records a visual approval dated 2026-10-06, which makes
-  the render a comparison reference rather than an accepted product design.
+  its adapter v2 pixels await human review; the earlier 2026-10-06 approval
+  does not apply to regenerated pixels.
 
 A licensed product corpus is still required before resource limits, bundle
 defaults, or a stable file extension can be published. Tests generate small
@@ -53,9 +71,10 @@ synthetic documents, which is not a substitute for that corpus.
 
 ## Open questions, in the order they block work
 
-1. **Who is the customer, and which paid task does the first release serve?**
-   Nothing about the feature set, the schema's stable fields, or the reference
-   corpus can be settled first.
+1. **Which marketing customer and repeatable task does the first release serve?**
+   Marketing designs and social media posts are the confirmed specialty. The
+   initial customer segment, campaign types and delivery expectations still
+   need representative briefs before the release feature set is fixed.
 2. **Which design files represent that task?** Their size, nesting, and asset
    mix decide the resource limits and the bundle profile's defaults.
 3. **Which editing operations are in scope for the first release?** The M0

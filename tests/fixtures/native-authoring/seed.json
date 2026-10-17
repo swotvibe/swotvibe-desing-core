@@ -1,0 +1,67 @@
+{
+  "schema_version": 2,
+  "id": "94e1f21f-062d-5490-9704-3ccf187a371a",
+  "pages": [
+    {
+      "id": "30cf31e6-15e2-5015-8326-aa1ec543896e",
+      "name": "GTA VI — 1080 × 1350",
+      "roots": []
+    }
+  ],
+  "assets": [
+    {
+      "id": "aa59646b-99eb-53a2-8f70-ff9377836ad9",
+      "name": "إضاءة متدرجة — رسم متجهي أصلي",
+      "source_page": "original vector paint",
+      "preparation": "Original vector gradient."
+    },
+    {
+      "id": "0cc2f6e4-13cd-57af-97b8-82892a668234",
+      "name": "دمج ضوئي — رسم متجهي أصلي",
+      "source_page": "original vector paint",
+      "preparation": "Original vector gradient."
+    },
+    {
+      "id": "f5eda027-b5b4-5f38-b20e-0a41f3916f8d",
+      "name": "Vice City — قصاصة الخلفية الأصلية",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "8b14f43a-6a47-5741-b266-0900c0cc669b",
+      "name": "Jason — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "8712118a-e255-54bc-96e6-169a8e6f5ac6",
+      "name": "Lucia — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "13957399-4741-590c-94bb-38e6bf517118",
+      "name": "السيارة — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "bdf74fd3-33d9-54a9-a646-c23ccbdbdd0a",
+      "name": "GTA VI — الشعار الرسمي",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    }
+  ],
+  "nodes": [],
+  "extensions": {
+    "com.swotvibe.design": {
+      "canvas": [
+        1080,
+        1350
+      ],
+      "language": "ar",
+      "composition": "Native editable scene. No generated poster used.",
+      "source_manifest": "../gta-vi-arabic-post-2026-10-16/sources/manifest.json"
+    }
+  }
+}

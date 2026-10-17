@@ -1,1 +1,3 @@
 *.rs text eol=lf
+# Asset payloads are opaque bytes, including SVG files named by UUID.
+tests/fixtures/native-authoring/assets/* -text

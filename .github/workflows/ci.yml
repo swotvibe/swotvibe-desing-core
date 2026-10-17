@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, UI]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -47,6 +47,12 @@ jobs:
       - name: rustfmt
         run: cargo fmt --all --check
 
+      - name: rustfmt (desktop host)
+        # The host is its own workspace, so the check above does not cover it.
+        # Formatting needs no platform library, which is why this can run here
+        # while compiling the host still cannot.
+        run: cargo fmt --check --manifest-path apps/desktop/src-tauri/Cargo.toml
+
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -64,6 +70,60 @@ jobs:
 
       - name: Bounded parser fuzz smoke
         run: cargo run --manifest-path fuzz/Cargo.toml --release -- 10000
+
+  interface:
+    name: interface typecheck, test, build
+    # The interface needs no platform library beyond Node, so it is checked on
+    # every push. Native host checks run separately on Windows, the platform
+    # currently built and tested; this job does not claim native Linux support.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          # Matches the version the lockfile was produced with. Vite 8 and
+          # Vitest 5 both require a modern LTS; 24 is the current one.
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/desktop/ui/package-lock.json
+
+      - name: Install interface dependencies
+        run: npm ci --prefix apps/desktop/ui
+
+      - name: Type-check the interface
+        run: npm run typecheck --prefix apps/desktop/ui
+
+      - name: Interface component tests
+        run: npm test --prefix apps/desktop/ui
+
+      - name: Build the interface
+        run: npm run build --prefix apps/desktop/ui
+
+  desktop-windows:
+    name: Windows desktop host and IPC
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/desktop/ui/package-lock.json
+      - name: Build the embedded interface
+        run: |
+          npm ci --prefix apps/desktop/ui
+          npm run build --prefix apps/desktop/ui
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Check host and IPC tests
+        run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings
+      - name: Test desktop host and real IPC handler
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+      - name: Build standalone desktop application
+        run: cargo build --manifest-path apps/desktop/src-tauri/Cargo.toml --bin swotvibe-design --features custom-protocol --locked
 
   licenses:
     name: dependency licenses

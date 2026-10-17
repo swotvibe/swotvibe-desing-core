@@ -1,0 +1,15 @@
+{
+  "name": "swotvibe-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop packaging scripts. The interface is its own package in ui/; the Rust host is in src-tauri/.",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "ui": "npm run dev --prefix ui",
+    "host": "cargo run --manifest-path src-tauri/Cargo.toml --bin swotvibe-design"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.1"
+  }
+}

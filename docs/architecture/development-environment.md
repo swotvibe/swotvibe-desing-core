@@ -90,7 +90,7 @@ cargo test -p swotvibe-core -p swotvibe-format -p swotvibe-text -p swotvibe-layo
 | مسار | ما هو | الحالة |
 |---|---|---|
 | `apps/desktop/src-tauri` | مضيف Tauri: نافذة، حوار ملفات أصلي، أوامر IPC رقيقة فوق `swotvibe-app` | يُبنى ويعمل على Windows؛ بوابة القبول جزئية |
-| `apps/desktop/ui` | واجهة Vue 3 وVite مع TypeScript `6.0.3` مقفل | تُبنى؛ 17 اختبار مكوّن ناجح |
+| `apps/desktop/ui` | واجهة Vue 3 وVite مع TypeScript `6.0.3` مقفل | تُبنى؛ 92 اختبار واجهة ناجح |
 
 ### الواجهة والجسر
 

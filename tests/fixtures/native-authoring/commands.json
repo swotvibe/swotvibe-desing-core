@@ -1,0 +1,949 @@
+[
+  {
+    "kind": "create-node",
+    "node": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d",
+    "nodeKind": "frame",
+    "name": "GTA VI — منشور عربي 1080 × 1350",
+    "fill": {
+      "r": 27,
+      "g": 17,
+      "b": 44,
+      "a": 255
+    },
+    "parent": {
+      "in": "page-root",
+      "page": "30cf31e6-15e2-5015-8326-aa1ec543896e"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d",
+    "fill": {
+      "r": 27,
+      "g": 17,
+      "b": 44,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d",
+    "size": [
+      1080,
+      1350
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+    "nodeKind": "group",
+    "name": "01 — الخلفية والإضاءة",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+    "size": [
+      1080,
+      1350
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+    "nodeKind": "image",
+    "name": "إضاءة خلفية متدرجة — متجهية",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "9cc31fa8-297c-58d6-991f-96711a3cdb39"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+    "size": [
+      1080,
+      1350.0
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+    "asset": "aa59646b-99eb-53a2-8f70-ff9377836ad9"
+  },
+  {
+    "kind": "create-node",
+    "node": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+    "nodeKind": "image",
+    "name": "Vice City — لافتة المطار والنخيل",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "9cc31fa8-297c-58d6-991f-96711a3cdb39"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+    "position": [
+      0,
+      450
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+    "size": [
+      1080,
+      607.5
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+    "asset": "f5eda027-b5b4-5f38-b20e-0a41f3916f8d"
+  },
+  {
+    "kind": "create-node",
+    "node": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+    "nodeKind": "image",
+    "name": "دمج الخلفية بسلاسة — متجهي",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "9cc31fa8-297c-58d6-991f-96711a3cdb39"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+    "size": [
+      1080,
+      1350.0
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+    "asset": "0cc2f6e4-13cd-57af-97b8-82892a668234"
+  },
+  {
+    "kind": "create-node",
+    "node": "dabccb27-c77f-5c8d-9319-30a83ea6510f",
+    "nodeKind": "shape",
+    "name": "حافة مرجانية علوية",
+    "fill": {
+      "r": 255,
+      "g": 141,
+      "b": 135,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "9cc31fa8-297c-58d6-991f-96711a3cdb39"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "dabccb27-c77f-5c8d-9319-30a83ea6510f",
+    "fill": {
+      "r": 255,
+      "g": 141,
+      "b": 135,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "dabccb27-c77f-5c8d-9319-30a83ea6510f",
+    "position": [
+      60,
+      36
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "dabccb27-c77f-5c8d-9319-30a83ea6510f",
+    "size": [
+      960,
+      3
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+    "nodeKind": "group",
+    "name": "02 — القصاصات الأصلية المستقلة",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+    "size": [
+      1080,
+      1350
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+    "nodeKind": "image",
+    "name": "السيارة الحمراء — مستقلة",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "1d181975-c04f-5dba-be59-c2ff13e1bf2a"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+    "position": [
+      320,
+      785
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+    "size": [
+      760,
+      523.661
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+    "asset": "13957399-4741-590c-94bb-38e6bf517118"
+  },
+  {
+    "kind": "create-node",
+    "node": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+    "nodeKind": "image",
+    "name": "Jason — حرّكه أو غيّر حجمه",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "1d181975-c04f-5dba-be59-c2ff13e1bf2a"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+    "position": [
+      600,
+      550
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+    "size": [
+      390,
+      753.085
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+    "asset": "8b14f43a-6a47-5741-b266-0900c0cc669b"
+  },
+  {
+    "kind": "create-node",
+    "node": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+    "nodeKind": "image",
+    "name": "Lucia — حرّكها أو غيّر حجمها",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "1d181975-c04f-5dba-be59-c2ff13e1bf2a"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+    "position": [
+      65,
+      650
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+    "size": [
+      480,
+      625.946
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+    "asset": "8712118a-e255-54bc-96e6-169a8e6f5ac6"
+  },
+  {
+    "kind": "create-node",
+    "node": "0769601c-4942-53ed-b515-ea2bd4841c27",
+    "nodeKind": "group",
+    "name": "03 — الشعار والنصوص القابلة للتحرير",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "0769601c-4942-53ed-b515-ea2bd4841c27",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "0769601c-4942-53ed-b515-ea2bd4841c27",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "0769601c-4942-53ed-b515-ea2bd4841c27",
+    "size": [
+      1080,
+      1350
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+    "nodeKind": "image",
+    "name": "شعار GTA VI — مستقل",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "0769601c-4942-53ed-b515-ea2bd4841c27"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+    "position": [
+      60,
+      62
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+    "size": [
+      230,
+      153.903
+    ]
+  },
+  {
+    "kind": "set-node-image-asset",
+    "node": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+    "asset": "bdf74fd3-33d9-54a9-a646-c23ccbdbdd0a"
+  },
+  {
+    "kind": "create-node",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "nodeKind": "text",
+    "name": "وسم المكان",
+    "fill": {
+      "r": 211,
+      "g": 154,
+      "b": 203,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "0769601c-4942-53ed-b515-ea2bd4841c27"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "fill": {
+      "r": 211,
+      "g": 154,
+      "b": 203,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "position": [
+      625,
+      83
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "size": [
+      390,
+      50
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "content": "فايس سيتي • ليونيدا",
+    "fontSize": 24
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 600,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "nodeKind": "text",
+    "name": "العنوان 01 — الشمس تغيب",
+    "fill": {
+      "r": 255,
+      "g": 240,
+      "b": 219,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "0769601c-4942-53ed-b515-ea2bd4841c27"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "fill": {
+      "r": 255,
+      "g": 240,
+      "b": 219,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "position": [
+      60,
+      200
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "size": [
+      960,
+      160
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "content": "الشمس تغيب.",
+    "fontSize": 103
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "0727413e-3c7f-55e4-8f14-09201d386f85",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 900,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "nodeKind": "text",
+    "name": "العنوان 02 — القواعد تسقط",
+    "fill": {
+      "r": 255,
+      "g": 141,
+      "b": 135,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "0769601c-4942-53ed-b515-ea2bd4841c27"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "fill": {
+      "r": 255,
+      "g": 141,
+      "b": 135,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "position": [
+      60,
+      325
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "size": [
+      960,
+      160
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "content": "القواعد تسقط.",
+    "fontSize": 103
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 900,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "nodeKind": "text",
+    "name": "السطر التسويقي",
+    "fill": {
+      "r": 238,
+      "g": 176,
+      "b": 213,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "0769601c-4942-53ed-b515-ea2bd4841c27"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "fill": {
+      "r": 238,
+      "g": 176,
+      "b": 213,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "position": [
+      60,
+      492
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "size": [
+      960,
+      64
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "content": "فايس سيتي تنتظرك",
+    "fontSize": 29
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "8318136e-8291-5365-9bba-4642129b5e13",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 600,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6",
+    "nodeKind": "group",
+    "name": "04 — موعد الإصدار والمنصات",
+    "fill": null,
+    "parent": {
+      "in": "child",
+      "parent": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6",
+    "fill": null
+  },
+  {
+    "kind": "set-node-position",
+    "node": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6",
+    "position": [
+      0,
+      0
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6",
+    "size": [
+      1080,
+      1350
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "58dc3333-4e8a-538a-b751-c37bf419cd38",
+    "nodeKind": "shape",
+    "name": "خلفية تذييل مستقلة",
+    "fill": {
+      "r": 21,
+      "g": 14,
+      "b": 35,
+      "a": 246
+    },
+    "parent": {
+      "in": "child",
+      "parent": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "58dc3333-4e8a-538a-b751-c37bf419cd38",
+    "fill": {
+      "r": 21,
+      "g": 14,
+      "b": 35,
+      "a": 246
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "58dc3333-4e8a-538a-b751-c37bf419cd38",
+    "position": [
+      0,
+      1160
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "58dc3333-4e8a-538a-b751-c37bf419cd38",
+    "size": [
+      1080,
+      190
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "nodeKind": "text",
+    "name": "تاريخ الإصدار — نص قابل للتحرير",
+    "fill": {
+      "r": 255,
+      "g": 156,
+      "b": 145,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "fill": {
+      "r": 255,
+      "g": 156,
+      "b": 145,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "position": [
+      60,
+      1165
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "size": [
+      960,
+      83
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "content": "١٩ نوفمبر ٢٠٢٦",
+    "fontSize": 48
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "ba84cab0-a034-50a4-b678-871d97c037cf",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 700,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+    "nodeKind": "shape",
+    "name": "فاصل المنصات",
+    "fill": {
+      "r": 185,
+      "g": 123,
+      "b": 175,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+    "fill": {
+      "r": 185,
+      "g": 123,
+      "b": 175,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+    "position": [
+      340,
+      1248
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+    "size": [
+      400,
+      2
+    ]
+  },
+  {
+    "kind": "create-node",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "nodeKind": "text",
+    "name": "المنصات",
+    "fill": {
+      "r": 224,
+      "g": 201,
+      "b": 228,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "fill": {
+      "r": 224,
+      "g": 201,
+      "b": 228,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "position": [
+      60,
+      1262
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "size": [
+      960,
+      38
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "content": "PS5   •   Xbox Series X|S",
+    "fontSize": 23
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+    "fontFamily": "Inter",
+    "fontWeight": 400,
+    "align": "center",
+    "direction": "auto"
+  },
+  {
+    "kind": "create-node",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "nodeKind": "text",
+    "name": "توضيح العمل التصوّري",
+    "fill": {
+      "r": 185,
+      "g": 158,
+      "b": 189,
+      "a": 255
+    },
+    "parent": {
+      "in": "child",
+      "parent": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+    }
+  },
+  {
+    "kind": "set-node-fill",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "fill": {
+      "r": 185,
+      "g": 158,
+      "b": 189,
+      "a": 255
+    }
+  },
+  {
+    "kind": "set-node-position",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "position": [
+      60,
+      1310
+    ]
+  },
+  {
+    "kind": "set-node-size",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "size": [
+      960,
+      32
+    ]
+  },
+  {
+    "kind": "set-node-text",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "content": "تصميم تصوّري غير رسمي",
+    "fontSize": 14
+  },
+  {
+    "kind": "set-node-text-style",
+    "node": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+    "fontFamily": "Noto Sans Arabic",
+    "fontWeight": 400,
+    "align": "center",
+    "direction": "auto"
+  }
+]

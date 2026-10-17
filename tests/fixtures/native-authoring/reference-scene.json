@@ -1,0 +1,721 @@
+{
+  "schema_version": 2,
+  "id": "94e1f21f-062d-5490-9704-3ccf187a371a",
+  "pages": [
+    {
+      "id": "30cf31e6-15e2-5015-8326-aa1ec543896e",
+      "name": "GTA VI — 1080 × 1350",
+      "roots": [
+        "6b6b7720-eb09-5fa4-9c6a-e80158052d4d"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "id": "aa59646b-99eb-53a2-8f70-ff9377836ad9",
+      "name": "إضاءة متدرجة — رسم متجهي أصلي",
+      "source_page": "original vector paint",
+      "preparation": "Original vector gradient."
+    },
+    {
+      "id": "0cc2f6e4-13cd-57af-97b8-82892a668234",
+      "name": "دمج ضوئي — رسم متجهي أصلي",
+      "source_page": "original vector paint",
+      "preparation": "Original vector gradient."
+    },
+    {
+      "id": "f5eda027-b5b4-5f38-b20e-0a41f3916f8d",
+      "name": "Vice City — قصاصة الخلفية الأصلية",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "8b14f43a-6a47-5741-b266-0900c0cc669b",
+      "name": "Jason — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "8712118a-e255-54bc-96e6-169a8e6f5ac6",
+      "name": "Lucia — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "13957399-4741-590c-94bb-38e6bf517118",
+      "name": "السيارة — قصاصة مستقلة",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    },
+    {
+      "id": "bdf74fd3-33d9-54a9-a646-c23ccbdbdd0a",
+      "name": "GTA VI — الشعار الرسمي",
+      "source_page": "https://www.rockstargames.com/VI/media",
+      "preparation": "Original web pixels; deterministic crop and alpha mask. No image generation."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "6b6b7720-eb09-5fa4-9c6a-e80158052d4d",
+      "kind": "frame",
+      "name": "GTA VI — منشور عربي 1080 × 1350",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "frame": {
+          "layout": "none"
+        },
+        "fill": [
+          27,
+          17,
+          44,
+          255
+        ]
+      },
+      "children": [
+        "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+        "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+        "0769601c-4942-53ed-b515-ea2bd4841c27",
+        "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6"
+      ]
+    },
+    {
+      "id": "9cc31fa8-297c-58d6-991f-96711a3cdb39",
+      "kind": "group",
+      "name": "01 — الخلفية والإضاءة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+        "4024faf7-4674-5fba-819f-5a551c7dee3f",
+        "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+        "dabccb27-c77f-5c8d-9319-30a83ea6510f"
+      ]
+    },
+    {
+      "id": "cfefdfaa-4d0b-59ae-b4a5-9b9bca5e702a",
+      "kind": "image",
+      "name": "إضاءة خلفية متدرجة — متجهية",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350.0
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "aa59646b-99eb-53a2-8f70-ff9377836ad9"
+        }
+      }
+    },
+    {
+      "id": "4024faf7-4674-5fba-819f-5a551c7dee3f",
+      "kind": "image",
+      "name": "Vice City — لافتة المطار والنخيل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          450
+        ],
+        "size": [
+          1080,
+          607.5
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "f5eda027-b5b4-5f38-b20e-0a41f3916f8d"
+        }
+      }
+    },
+    {
+      "id": "f69f4060-e78c-56ee-afb0-8c4a472a6d89",
+      "kind": "image",
+      "name": "دمج الخلفية بسلاسة — متجهي",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350.0
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "0cc2f6e4-13cd-57af-97b8-82892a668234"
+        }
+      }
+    },
+    {
+      "id": "dabccb27-c77f-5c8d-9319-30a83ea6510f",
+      "kind": "shape",
+      "name": "حافة مرجانية علوية",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          36
+        ],
+        "size": [
+          960,
+          3
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        },
+        "fill": [
+          255,
+          141,
+          135,
+          255
+        ]
+      }
+    },
+    {
+      "id": "1d181975-c04f-5dba-be59-c2ff13e1bf2a",
+      "kind": "group",
+      "name": "02 — القصاصات الأصلية المستقلة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+        "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+        "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb"
+      ]
+    },
+    {
+      "id": "d238e36d-bddc-50f8-8c6c-199e2c52e1a7",
+      "kind": "image",
+      "name": "السيارة الحمراء — مستقلة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          320,
+          785
+        ],
+        "size": [
+          760,
+          523.661
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "13957399-4741-590c-94bb-38e6bf517118"
+        }
+      }
+    },
+    {
+      "id": "7b4dda71-8b2f-5d35-a2a3-d72e1495e885",
+      "kind": "image",
+      "name": "Jason — حرّكه أو غيّر حجمه",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          600,
+          550
+        ],
+        "size": [
+          390,
+          753.085
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "8b14f43a-6a47-5741-b266-0900c0cc669b"
+        }
+      }
+    },
+    {
+      "id": "f40b94a9-577e-5d06-bd7b-d2ae71f3adeb",
+      "kind": "image",
+      "name": "Lucia — حرّكها أو غيّر حجمها",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          65,
+          650
+        ],
+        "size": [
+          480,
+          625.946
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "8712118a-e255-54bc-96e6-169a8e6f5ac6"
+        }
+      }
+    },
+    {
+      "id": "0769601c-4942-53ed-b515-ea2bd4841c27",
+      "kind": "group",
+      "name": "03 — الشعار والنصوص القابلة للتحرير",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+        "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+        "0727413e-3c7f-55e4-8f14-09201d386f85",
+        "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+        "8318136e-8291-5365-9bba-4642129b5e13"
+      ]
+    },
+    {
+      "id": "41b4609b-b0d7-5ca4-9306-414bb9b3b3de",
+      "kind": "image",
+      "name": "شعار GTA VI — مستقل",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          62
+        ],
+        "size": [
+          230,
+          153.903
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "image": {
+          "asset": "bdf74fd3-33d9-54a9-a646-c23ccbdbdd0a"
+        }
+      }
+    },
+    {
+      "id": "309a2620-6f5c-5fb6-9ebd-e1a0011c48e9",
+      "kind": "text",
+      "name": "وسم المكان",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          625,
+          83
+        ],
+        "size": [
+          390,
+          50
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "فايس سيتي • ليونيدا",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 24,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          211,
+          154,
+          203,
+          255
+        ]
+      }
+    },
+    {
+      "id": "0727413e-3c7f-55e4-8f14-09201d386f85",
+      "kind": "text",
+      "name": "العنوان 01 — الشمس تغيب",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          200
+        ],
+        "size": [
+          960,
+          160
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "الشمس تغيب.",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 103,
+          "font_weight": 900,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          255,
+          240,
+          219,
+          255
+        ]
+      }
+    },
+    {
+      "id": "b7fa8ac9-9892-52ad-896b-c2495b24b831",
+      "kind": "text",
+      "name": "العنوان 02 — القواعد تسقط",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          325
+        ],
+        "size": [
+          960,
+          160
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "القواعد تسقط.",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 103,
+          "font_weight": 900,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          255,
+          141,
+          135,
+          255
+        ]
+      }
+    },
+    {
+      "id": "8318136e-8291-5365-9bba-4642129b5e13",
+      "kind": "text",
+      "name": "السطر التسويقي",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          492
+        ],
+        "size": [
+          960,
+          64
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "فايس سيتي تنتظرك",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 29,
+          "font_weight": 600,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          238,
+          176,
+          213,
+          255
+        ]
+      }
+    },
+    {
+      "id": "77ae4ea2-1d1e-5c11-9862-10b7fc38e1d6",
+      "kind": "group",
+      "name": "04 — موعد الإصدار والمنصات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ],
+        "size": [
+          1080,
+          1350
+        ],
+        "width": "fixed",
+        "height": "fixed"
+      },
+      "children": [
+        "58dc3333-4e8a-538a-b751-c37bf419cd38",
+        "ba84cab0-a034-50a4-b678-871d97c037cf",
+        "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+        "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+        "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e"
+      ]
+    },
+    {
+      "id": "58dc3333-4e8a-538a-b751-c37bf419cd38",
+      "kind": "shape",
+      "name": "خلفية تذييل مستقلة",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          1160
+        ],
+        "size": [
+          1080,
+          190
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        },
+        "fill": [
+          21,
+          14,
+          35,
+          246
+        ]
+      }
+    },
+    {
+      "id": "ba84cab0-a034-50a4-b678-871d97c037cf",
+      "kind": "text",
+      "name": "تاريخ الإصدار — نص قابل للتحرير",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          1165
+        ],
+        "size": [
+          960,
+          83
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "١٩ نوفمبر ٢٠٢٦",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 48,
+          "font_weight": 700,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          255,
+          156,
+          145,
+          255
+        ]
+      }
+    },
+    {
+      "id": "1ac6cbf9-50c5-5daf-80c3-fa8aa8b7d8eb",
+      "kind": "shape",
+      "name": "فاصل المنصات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          340,
+          1248
+        ],
+        "size": [
+          400,
+          2
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "shape": {
+          "geometry": "rect",
+          "corner_radius": 0
+        },
+        "fill": [
+          185,
+          123,
+          175,
+          255
+        ]
+      }
+    },
+    {
+      "id": "f6b8ff02-43a3-5e45-854e-f0226236c3c2",
+      "kind": "text",
+      "name": "المنصات",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          1262
+        ],
+        "size": [
+          960,
+          38
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "PS5   •   Xbox Series X|S",
+          "font_family": "Inter",
+          "font_size": 23,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          224,
+          201,
+          228,
+          255
+        ]
+      }
+    },
+    {
+      "id": "d88b26bf-6b6f-53c4-a390-a3bf8a6d8d9e",
+      "kind": "text",
+      "name": "توضيح العمل التصوّري",
+      "props": {
+        "transform": [
+          1,
+          0,
+          0,
+          1,
+          60,
+          1310
+        ],
+        "size": [
+          960,
+          32
+        ],
+        "width": "fixed",
+        "height": "fixed",
+        "text": {
+          "content": "تصميم تصوّري غير رسمي",
+          "font_family": "Noto Sans Arabic",
+          "font_size": 14,
+          "font_weight": 400,
+          "direction": "auto",
+          "align": "center"
+        },
+        "fill": [
+          185,
+          158,
+          189,
+          255
+        ]
+      }
+    }
+  ],
+  "extensions": {
+    "com.swotvibe.design": {
+      "canvas": [
+        1080,
+        1350
+      ],
+      "language": "ar",
+      "composition": "Native editable scene. No generated poster used.",
+      "source_manifest": "../gta-vi-arabic-post-2026-10-16/sources/manifest.json"
+    }
+  }
+}

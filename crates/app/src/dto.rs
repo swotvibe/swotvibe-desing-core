@@ -19,12 +19,21 @@
 
 use serde::{Deserialize, Serialize};
 
+// A missing setter value is an error; clearing is represented by explicit null.
+fn required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 /// An RGBA colour, eight bits per channel.
 ///
 /// The document stores colour this way, so the contract does not invent a
 /// second representation such as a CSS string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Rgba {
     /// Red.
     pub r: u8,
@@ -103,6 +112,10 @@ pub struct PropsView {
     pub font_family: Option<String>,
     /// A text node's font size in design units.
     pub font_size: Option<f64>,
+    /// A text node's selected weight, in `1..=1000`.
+    pub font_weight: Option<u16>,
+    /// Paragraph alignment: `start`, `center`, or `end`.
+    pub text_align: Option<String>,
     /// A text node's paragraph direction: `auto`, `ltr`, or `rtl`.
     pub text_direction: Option<String>,
     /// An image node's asset identity.
@@ -142,6 +155,12 @@ pub struct DocumentView {
     pub revision: u64,
     /// Whether the document has unsaved changes.
     pub dirty: bool,
+    /// Whether undo is available in this session.
+    pub can_undo: bool,
+    /// Whether redo is available in this session.
+    pub can_redo: bool,
+    /// Current undo/redo retention and whether the last commit was kept.
+    pub history: HistoryView,
     /// The file name to show, or `None` for a document with no source yet.
     ///
     /// A display label only. The full path stays in the host: an interface does
@@ -152,6 +171,40 @@ pub struct DocumentView {
     pub pages: Vec<PageView>,
     /// Every node in the document.
     pub nodes: Vec<NodeView>,
+}
+
+/// Session retention information; never part of the persisted design file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryView {
+    /// Available undo steps.
+    pub undo_depth: usize,
+    /// Available redo steps.
+    pub redo_depth: usize,
+    /// Configured total step limit.
+    pub step_capacity: Option<usize>,
+    /// Configured estimated-byte limit; `None` means unconfigured.
+    pub byte_capacity: Option<usize>,
+    /// Estimated retained bytes across both stacks, not process memory.
+    pub estimated_bytes: usize,
+    /// Entries dropped by the current retention policy.
+    pub evicted_entries: usize,
+    /// Whether the latest commit was retained at its commit boundary.
+    pub last_commit_retained: Option<bool>,
+}
+
+impl From<swotvibe_core::HistoryStatus> for HistoryView {
+    fn from(status: swotvibe_core::HistoryStatus) -> Self {
+        Self {
+            undo_depth: status.undo_depth,
+            redo_depth: status.redo_depth,
+            step_capacity: status.step_capacity,
+            byte_capacity: status.byte_capacity,
+            estimated_bytes: status.estimated_bytes,
+            evicted_entries: status.evicted_entries,
+            last_commit_retained: status.last_commit_retained,
+        }
+    }
 }
 
 /// A request to change the document.
@@ -168,7 +221,8 @@ pub struct DocumentView {
 #[serde(
     tag = "kind",
     rename_all = "kebab-case",
-    rename_all_fields = "camelCase"
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
 )]
 #[non_exhaustive]
 pub enum EditCommand {
@@ -210,14 +264,16 @@ pub enum EditCommand {
     RenameNode {
         /// The node to rename.
         node: String,
-        /// The new name, or `None` to clear it.
+        /// The new name, or explicit `null` to clear it; omission is rejected.
+        #[serde(deserialize_with = "required_nullable")]
         name: Option<String>,
     },
     /// Sets or clears a node's fill colour.
     SetNodeFill {
         /// The node to change.
         node: String,
-        /// The new fill, or `None` to remove it.
+        /// The new fill, or explicit `null` to remove it; omission is rejected.
+        #[serde(deserialize_with = "required_nullable")]
         fill: Option<Rgba>,
     },
     /// Moves a node to a position on its page.
@@ -251,6 +307,36 @@ pub enum EditCommand {
         /// The new radius in design units. Zero is a square corner.
         radius: f64,
     },
+    /// Edits the content and type size of a text node.
+    SetNodeText {
+        /// The text node to change.
+        node: String,
+        /// The replacement text, including line breaks.
+        content: String,
+        /// A positive type size in design units.
+        font_size: f64,
+    },
+    /// Sets an entire text style without changing content, size or geometry.
+    SetNodeTextStyle {
+        /// The text node to change.
+        node: String,
+        /// A registered family name.
+        font_family: String,
+        /// The selected weight, in `1..=1000`.
+        font_weight: u16,
+        /// Paragraph alignment: `start`, `center`, or `end`.
+        align: String,
+        /// Paragraph direction. Query capabilities for supported values.
+        direction: String,
+    },
+    /// Binds an existing, available image resource, or explicitly clears it.
+    SetNodeImageAsset {
+        /// The image node to change.
+        node: String,
+        /// An existing asset identity; explicit `null` clears the binding.
+        #[serde(deserialize_with = "required_nullable")]
+        asset: Option<String>,
+    },
 }
 
 /// Where a created or moved node goes.
@@ -259,7 +345,12 @@ pub enum EditCommand {
 /// container rather than as a raw index, so an interface never has to know how
 /// many siblings exist to say "at the end".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "in", rename_all = "kebab-case", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "in",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
 #[non_exhaustive]
 pub enum NodeParent {
     /// As a root of the given page.
@@ -280,7 +371,7 @@ pub enum NodeParent {
 /// it does not match, nothing is attempted: a stale interface must reload rather
 /// than overwrite a change it never saw.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EditRequest {
     /// The revision the caller believes the document is at.
     pub expected_revision: u64,
@@ -302,6 +393,8 @@ pub struct CommitSummary {
     pub can_undo: bool,
     /// Whether there is a step to redo.
     pub can_redo: bool,
+    /// Current undo/redo retention and whether the last commit was kept.
+    pub history: HistoryView,
     /// Nodes that did not exist before the batch.
     pub added_nodes: Vec<String>,
     /// Nodes that no longer exist.
@@ -317,7 +410,7 @@ pub struct CommitSummary {
 /// These are session choices, not document state: the page size is the artboard
 /// the host is showing, and the scale is a zoom level. Neither is persisted.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PreviewOptions {
     /// The artboard size in design units, or `None` to fit the content.
     pub page_size: Option<[f64; 2]>,
@@ -424,6 +517,14 @@ pub struct LayoutView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Capabilities {
+    /// Edit command wire names supported by this service.
+    pub editable_commands: Vec<String>,
+    /// Paragraph directions this build can apply and render.
+    pub text_directions: Vec<String>,
+    /// Available paragraph alignments.
+    pub text_alignments: Vec<String>,
+    /// Inclusive accepted font-weight bounds.
+    pub font_weight_range: [u16; 2],
     /// The node kinds this build can create.
     ///
     /// Every kind in the current schema, which is why it is a list rather than a

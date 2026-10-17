@@ -22,7 +22,7 @@ use parley::layout::{Alignment, AlignmentOptions, PositionedLayoutItem};
 use parley::style::{FontFamily, FontFamilyName, FontWeight, StyleProperty};
 use parley::{FontContext, LayoutContext, RangedBuilder};
 use skrifa::MetadataProvider;
-use skrifa::prelude::{FontRef, GlyphId, LocationRef, Size};
+use skrifa::prelude::{FontRef, GlyphId, LocationRef, NormalizedCoord, Size};
 use swotvibe_core::{TextAlign, TextDirection};
 
 use crate::contract::{
@@ -57,11 +57,12 @@ struct Inner {
 }
 
 /// The cache key of one glyph outline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct OutlineKey {
     font: FontKey,
     glyph: u16,
     size_bits: u64,
+    normalized_coords: Vec<i16>,
 }
 
 impl ParleyTextEngine {
@@ -187,6 +188,7 @@ impl ParleyTextEngine {
                 runs.push(ShapedRun {
                     font: source,
                     font_size: f64::from(run.font_size()),
+                    normalized_coords: run.normalized_coords().to_vec(),
                     is_rtl: run.is_rtl(),
                     synthesis: TextSynthesis {
                         bold: run.synthesis().embolden(),
@@ -235,6 +237,7 @@ impl ParleyTextEngine {
         key: FontKey,
         glyph: u16,
         font_size: f64,
+        normalized_coords: &[i16],
     ) -> Result<Option<GlyphOutline>, TextError> {
         if !font_size.is_finite() || font_size <= 0.0 {
             return Err(TextError::InvalidRequest {
@@ -260,12 +263,17 @@ impl ParleyTextEngine {
             return Ok(None);
         };
 
+        let location: Vec<_> = normalized_coords
+            .iter()
+            .copied()
+            .map(NormalizedCoord::from_bits)
+            .collect();
         let mut recorder = PathRecorder::new();
         outline
             .draw(
                 skrifa::outline::DrawSettings::unhinted(
                     Size::new(font_size as f32),
-                    LocationRef::new(&[]),
+                    LocationRef::new(&location),
                 ),
                 &mut recorder,
             )
@@ -307,10 +315,21 @@ impl TextLayoutEngine for ParleyTextEngine {
         glyph: u16,
         font_size: f64,
     ) -> Result<Option<Arc<GlyphOutline>>, TextError> {
+        self.outline_at(font, glyph, font_size, &[])
+    }
+
+    fn outline_at(
+        &self,
+        font: FontKey,
+        glyph: u16,
+        font_size: f64,
+        normalized_coords: &[i16],
+    ) -> Result<Option<Arc<GlyphOutline>>, TextError> {
         let key = OutlineKey {
             font,
             glyph,
             size_bits: font_size.to_bits(),
+            normalized_coords: normalized_coords.to_vec(),
         };
         let mut inner = self
             .inner
@@ -319,7 +338,9 @@ impl TextLayoutEngine for ParleyTextEngine {
         if let Some(cached) = inner.outlines.get(&key) {
             return Ok(Some(Arc::clone(cached)));
         }
-        let Some(outline) = Self::outline_uncached(&self.fonts, font, glyph, font_size)? else {
+        let Some(outline) =
+            Self::outline_uncached(&self.fonts, font, glyph, font_size, normalized_coords)?
+        else {
             return Ok(None);
         };
         let outline = Arc::new(outline);

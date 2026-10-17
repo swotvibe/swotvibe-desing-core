@@ -138,6 +138,12 @@ impl RenderAssets {
         self.limits
     }
 
+    /// Whether an encoded resource is available. Decodability is checked at render time.
+    #[must_use]
+    pub fn contains(&self, id: swotvibe_core::AssetId) -> bool {
+        self.payloads.contains_key(&id)
+    }
+
     pub(crate) fn get(&self, id: swotvibe_core::AssetId) -> Option<&[u8]> {
         self.payloads.get(&id).map(Vec::as_slice)
     }
@@ -328,6 +334,10 @@ impl RenderedImage {
                 bytes: limits.max_decoder_bytes,
             },
         );
+        // Normalize before sizing/reading the output: palette+tRNS and low-bit
+        // grayscale must expand, and 16-bit channels must be stripped before
+        // adding an opaque alpha channel to RGB data.
+        decoder.set_transformations(png::Transformations::normalize_to_color8());
         let header = decoder.read_header_info().map_err(png_error)?;
         let width = header.width;
         let height = header.height;
@@ -393,22 +403,6 @@ impl RenderedImage {
             png::ColorType::Indexed => {
                 return Err(RenderError::Png {
                     message: "an indexed PNG must be expanded before it is read".to_owned(),
-                });
-            }
-        };
-        // A 16-bit source is widened to 8 bits by dropping the low byte, which
-        // is what an 8-bit reference image is compared at.
-        let rgba = match info.bit_depth {
-            png::BitDepth::Eight => rgba,
-            png::BitDepth::Sixteen => rgba
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|pair| pair[0])
-                .collect::<Vec<u8>>(),
-            other => {
-                return Err(RenderError::Png {
-                    message: format!("the PNG bit depth {other:?} is not supported"),
                 });
             }
         };
@@ -769,6 +763,61 @@ mod tests {
             max_output_bytes: 16,
             max_decoder_bytes: 1024,
         }
+    }
+
+    #[test]
+    fn palette_png_transparency_is_expanded_to_rgba() {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, 2, 1);
+            encoder.set_color(png::ColorType::Indexed);
+            encoder.set_depth(png::BitDepth::One);
+            encoder.set_palette(vec![255, 0, 0, 0, 255, 0]);
+            encoder.set_trns(vec![0, 255]);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[0b0100_0000])
+                .unwrap();
+        }
+        let image = RenderedImage::from_png(&bytes, png_limits()).unwrap();
+        assert_eq!(image.pixel(0, 0), Some([255, 0, 0, 0]));
+        assert_eq!(image.pixel(1, 0), Some([0, 255, 0, 255]));
+    }
+
+    #[test]
+    fn grayscale_one_bit_png_is_expanded_to_rgba() {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, 2, 1);
+            encoder.set_color(png::ColorType::Grayscale);
+            encoder.set_depth(png::BitDepth::One);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[0b0100_0000])
+                .unwrap();
+        }
+        let image = RenderedImage::from_png(&bytes, png_limits()).unwrap();
+        assert_eq!(image.pixel(0, 0), Some([0, 0, 0, 255]));
+        assert_eq!(image.pixel(1, 0), Some([255, 255, 255, 255]));
+    }
+
+    #[test]
+    fn rgb_sixteen_bit_png_keeps_channel_order_and_opaque_alpha() {
+        let mut bytes = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut bytes, 1, 1);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Sixteen);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(&[0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc])
+                .unwrap();
+        }
+        let image = RenderedImage::from_png(&bytes, png_limits()).unwrap();
+        assert_eq!(image.pixel(0, 0), Some([0x12, 0x56, 0x9a, 255]));
     }
 
     #[test]

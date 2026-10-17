@@ -1,4 +1,4 @@
-import { computed, inject, provide, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, inject, nextTick, provide, ref, type ComputedRef, type Ref } from 'vue'
 
 import {
   AppError,
@@ -7,6 +7,7 @@ import {
   type EditorBridge,
   type LayoutView,
   type NodeView,
+  type PreviewOptions,
   type Rgba,
 } from '@/bridge/types'
 import { editorKey, editorStateKey, type ToolId } from './context'
@@ -30,6 +31,18 @@ export const PREVIEW_OPTIONS = {
   pageSize: ARTBOARD,
   scale: 1,
   background: [255, 255, 255, 255] as [number, number, number, number],
+}
+
+/** A sole, untransformed root frame is the document's artboard. */
+function pageOptions(document: DocumentView | null, page: string): PreviewOptions {
+  const roots = document?.pages.find((item) => item.id === page)?.roots ?? []
+  const frame = roots.length === 1 ? document?.nodes.find((node) => node.id === roots[0]) : null
+  if (frame?.kind === 'frame' && frame.props.widthSizing === 'fixed' && frame.props.heightSizing === 'fixed'
+    && frame.props.transform.every((value, index) => value === [1, 0, 0, 1, 0, 0][index])
+    && frame.props.size.every((value) => Number.isFinite(value) && value > 0)) {
+    return { ...PREVIEW_OPTIONS, pageSize: [...frame.props.size] }
+  }
+  return PREVIEW_OPTIONS
 }
 
 export interface EditorFailure {
@@ -73,6 +86,10 @@ type EditCommands = Parameters<EditorBridge['apply']>[0]['commands']
  * stale interface is refused instead of overwriting work it never saw.
  */
 export interface EditorSession {
+  previewUrl: Ref<string | null>
+  dispose: () => void
+  whenIdle: () => Promise<void>
+  nudge: (dx: number, dy: number) => Promise<void>
   view: Ref<DocumentView | null>
   layout: Ref<LayoutView | null>
   nodesById: ComputedRef<Map<string, NodeView>>
@@ -81,6 +98,11 @@ export interface EditorSession {
   selectedId: Ref<string | null>
   selectedRect: ComputedRef<[number, number, number, number] | null>
   selectedRotation: ComputedRef<number>
+  activePageId: Ref<string | null>
+  selectPage: (id: string) => Promise<void>
+  canUndo: ComputedRef<boolean>
+  canRedo: ComputedRef<boolean>
+  setText: (content: string, fontSize: number) => Promise<void>
   activeTool: Ref<ToolId>
   zoom: Ref<number>
   busy: Ref<boolean>
@@ -91,7 +113,7 @@ export interface EditorSession {
   load: () => Promise<void>
   edit: (commands: EditCommands) => Promise<void>
   select: (id: string | null) => void
-  selectAt: (pageX: number, pageY: number) => Promise<void>
+  selectAt: (pageX: number, pageY: number) => Promise<boolean>
   setFill: (fill: Rgba | null) => Promise<void>
   setPosition: (x: number, y: number) => Promise<void>
   setSize: (width: number, height: number) => Promise<void>
@@ -100,6 +122,8 @@ export interface EditorSession {
   undo: () => Promise<void>
   redo: () => Promise<void>
   save: () => Promise<void>
+  newDocument: () => void
+  canNew: boolean
   open: () => void
   openSample: () => void
   confirmation: Ref<PendingConfirmation | null>
@@ -118,15 +142,54 @@ export interface EditorSession {
 
 /** Builds a session over a service. */
 export function createEditorSession(bridge: EditorBridge): EditorSession {
+  const previewUrl = ref<string | null>(null)
+  let disposed = false
+  function clearPreview(): void {
+    if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = null
+  }
+  function dispose(): void { disposed = true; clearPreview() }
   const view = ref<DocumentView | null>(null)
   const layout = ref<LayoutView | null>(null)
   const selectedId = ref<string | null>(null)
   const activeTool = ref<ToolId>('select')
-  const zoom = ref(0.21)
+  const zoom = ref(1)
+  const activePageId = ref<string | null>(null)
+  let selectionRequest = 0
+  let pendingOperations = 0
+  let operationTail = Promise.resolve()
+  let mutationSequence = 0
+  let pendingSave: { sequence: number; promise: Promise<void> } | null = null
+  let pendingReplacement = false
   const busy = ref(false)
   const failure = ref<EditorFailure | null>(null)
   const status = ref('Ready')
   const confirmation = ref<PendingConfirmation | null>(null)
+
+  // Read the revision only when an operation reaches the front of the queue.
+  // Rapid colour changes and keyboard repeats must never share a stale revision.
+  function enqueue(action: () => Promise<void>): Promise<void> {
+    if (disposed) return Promise.resolve()
+    pendingOperations += 1
+    busy.value = true
+    const result = operationTail.then(() => disposed ? undefined : action()).finally(() => {
+      pendingOperations -= 1
+      busy.value = pendingOperations > 0
+    })
+    operationTail = result.catch(() => {})
+    return result
+  }
+
+  async function whenIdle(): Promise<void> {
+    let tail: Promise<void>
+    do {
+      tail = operationTail
+      await tail
+    } while (tail !== operationTail)
+  }
+
+  const canUndo = computed(() => view.value?.canUndo ?? false)
+  const canRedo = computed(() => view.value?.canRedo ?? false)
 
   const nodesById = computed(() => {
     const map = new Map<string, NodeView>()
@@ -142,7 +205,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   })
 
   const roots = computed<NodeView[]>(() => {
-    const page = view.value?.pages[0]
+    const page = view.value?.pages.find((page) => page.id === activePageId.value)
     if (!page) return []
     return page.roots
       .map((id) => nodesById.value.get(id))
@@ -190,66 +253,144 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
   }
 
   function clearFailure(): void {
+    if (failure.value && status.value === failure.value.message) status.value = 'Ready'
     failure.value = null
   }
 
-  async function refresh(): Promise<void> {
-    const previousPage = view.value?.pages[0]?.id
+  // Keep the last complete frame while the next is computed. Publish geometry,
+  // properties and pixels together; a failed render must still expose the new view.
+  async function refresh(reuseDrawing = false): Promise<void> {
+    selectionRequest += 1
     const next = await bridge.getView()
-    view.value = next
-    const page = next.pages[0]?.id ?? previousPage
-    if (page) {
-      layout.value = await bridge.layout(page, PREVIEW_OPTIONS)
+    const page = next.pages.some((page) => page.id === activePageId.value)
+      ? activePageId.value : next.pages[0]?.id ?? null
+    if (reuseDrawing && next.revision === revision.value && page === layout.value?.page) {
+      view.value = next
+      return
     }
-    // A node can disappear under an undo, so a selection is validated rather
-    // than kept on faith.
-    if (selectedId.value && !nodesById.value.has(selectedId.value)) {
-      selectedId.value = null
+    let nextLayout: LayoutView | null = null
+    let nextPreview: string | null = null
+    try {
+      if (page) {
+        const options = pageOptions(next, page)
+        nextLayout = await bridge.layout(page, options)
+        nextPreview = await makePreview(page, next.revision, options)
+      }
+    } finally {
+      const previousPreview = previewUrl.value
+      view.value = next
+      activePageId.value = page
+      layout.value = nextLayout
+      previewUrl.value = disposed ? null : nextPreview
+      if (selectedId.value && !nodesById.value.has(selectedId.value)) selectedId.value = null
+      await nextTick()
+      if (previousPreview) URL.revokeObjectURL(previousPreview)
+      if (disposed && nextPreview) URL.revokeObjectURL(nextPreview)
     }
   }
 
-  async function load(): Promise<void> {
-    busy.value = true
+  async function makePreview(page: string, expectedRevision: number, options: PreviewOptions): Promise<string | null> {
+    if (!bridge.rasterPreview || disposed) return null
+    const preview = await bridge.preview(page, options)
+    if (disposed || preview.revision !== expectedRevision) return null
+    const url = URL.createObjectURL(new Blob([new Uint8Array(preview.png)], { type: 'image/png' }))
+    try {
+      const image = new Image()
+      image.src = url
+      // Decode before replacing the old image to avoid a blank frame between loads.
+      if (image.decode) await image.decode()
+      return url
+    } catch (cause) {
+      URL.revokeObjectURL(url)
+      throw cause
+    }
+  }
+
+  function selectPage(id: string): Promise<void> {
+    if (confirmation.value) return Promise.resolve()
+    return enqueue(async () => {
+      if (id === activePageId.value || !view.value?.pages.some((page) => page.id === id)) return
+      activePageId.value = id
+      select(null)
+      layout.value = null
+      clearPreview()
+      try {
+        await refresh()
+        clearFailure()
+      } catch (cause) { report(cause, 'the page could not be laid out') }
+    })
+  }
+
+  function load(): Promise<void> {
+    if (confirmation.value) return Promise.resolve()
+    return enqueue(() => loadNow())
+  }
+
+  async function loadNow(): Promise<void> {
     try {
       await loadCapabilities()
       await refresh()
       status.value = `Opened ${view.value?.displayName ?? 'document'}`
     } catch (cause) {
       report(cause, 'the document could not be opened')
-    } finally {
-      busy.value = false
     }
   }
 
-  async function edit(commands: EditCommands): Promise<void> {
+  function edit(commands: EditCommands): Promise<void> {
+    if (confirmation.value) return Promise.resolve()
+    mutationSequence += 1
+    return enqueue(() => editNow(commands))
+  }
+
+  async function editNow(commands: EditCommands): Promise<void> {
     if (commands.length === 0) return
-    busy.value = true
     try {
-      const summary = await bridge.apply({ expectedRevision: revision.value, commands })
+      selectionRequest += 1
+      await bridge.apply({ expectedRevision: revision.value, commands })
       await refresh()
       clearFailure()
-      status.value = `Revision ${summary.revision}`
+      const action = commands.length === 1 ? commands[0]?.kind : null
+      status.value = action === 'set-node-position' ? 'Layer moved' : action === 'set-node-size' ? 'Layer resized' : action === 'rename-node' ? 'Layer renamed' : action === 'set-node-fill' ? 'Fill updated' : action === 'set-node-text' ? 'Text updated' : 'Changes applied'
     } catch (cause) {
-      report(cause, 'the edit was refused')
-    } finally {
-      busy.value = false
+      await reportMutationFailure(cause, 'the edit was refused')
     }
   }
 
-  async function selectAt(pageX: number, pageY: number): Promise<void> {
-    const page = view.value?.pages[0]?.id
-    if (!page) return
+  async function reportMutationFailure(cause: unknown, fallback: string): Promise<void> {
+    if ((cause as { code?: unknown } | null)?.code === 'revision-conflict') {
+      try {
+        // Refresh for the next action, without replaying an edit against a document
+        // the person has not seen. Retrying a deletion here could destroy new work.
+        await refresh()
+        report({ code: 'revision-conflict', message: 'The document changed elsewhere. Review the latest version and try again.' }, fallback)
+        return
+      } catch { /* Keep the original refusal if the service is still unavailable. */ }
+    }
+    report(cause, fallback)
+  }
+
+  async function selectAt(pageX: number, pageY: number): Promise<boolean> {
+    const page = activePageId.value
+    if (!page || busy.value || confirmation.value || disposed) return false
+    const request = ++selectionRequest
+    const expectedRevision = revision.value
     try {
-      const hit = await bridge.hitTest(page, pageX, pageY, PREVIEW_OPTIONS)
+      const hit = await bridge.hitTest(page, pageX, pageY, pageOptions(view.value, page))
+      if (disposed || request !== selectionRequest || hit.revision !== expectedRevision || activePageId.value !== page) return false
       selectedId.value = hit.node
       const name = hit.node ? nodesById.value.get(hit.node)?.name || hit.node : ''
       status.value = hit.node ? `Selected ${name}` : 'Nothing selected'
+      return true
     } catch (cause) {
-      report(cause, 'the hit test failed')
+      if (!disposed && request === selectionRequest && activePageId.value === page && revision.value === expectedRevision) {
+        report(cause, 'the hit test failed')
+      }
+      return false
     }
   }
 
   function select(id: string | null): void {
+    selectionRequest += 1
     selectedId.value = id
   }
 
@@ -286,40 +427,58 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     await edit([{ kind: 'rename-node', node: id, name: name === '' ? null : name }])
   }
 
-  async function undo(): Promise<void> {
-    busy.value = true
+  function undo(): Promise<void> {
+    if (confirmation.value) return Promise.resolve()
+    mutationSequence += 1
+    return enqueue(() => undoNow())
+  }
+
+  async function undoNow(): Promise<void> {
+    if (view.value?.canUndo === false) return
     try {
       await bridge.undo(revision.value)
       await refresh()
       clearFailure()
       status.value = 'Undo'
     } catch (cause) {
-      report(cause, 'there is nothing to undo')
-    } finally {
-      busy.value = false
+      await reportMutationFailure(cause, 'there is nothing to undo')
     }
   }
 
-  async function redo(): Promise<void> {
-    busy.value = true
+  function redo(): Promise<void> {
+    if (confirmation.value) return Promise.resolve()
+    mutationSequence += 1
+    return enqueue(() => redoNow())
+  }
+
+  async function redoNow(): Promise<void> {
+    if (view.value?.canRedo === false) return
     try {
       await bridge.redo(revision.value)
       await refresh()
       clearFailure()
       status.value = 'Redo'
     } catch (cause) {
-      report(cause, 'there is nothing to redo')
-    } finally {
-      busy.value = false
+      await reportMutationFailure(cause, 'there is nothing to redo')
     }
   }
 
-  async function save(): Promise<void> {
-    busy.value = true
+  function save(): Promise<void> {
+    if (!activePageId.value) return Promise.resolve()
+    if (confirmation.value) return Promise.resolve()
+    if (pendingSave?.sequence === mutationSequence) return pendingSave.promise
+    const promise = enqueue(() => saveNow())
+    const entry = { sequence: mutationSequence, promise }
+    pendingSave = entry
+    void promise.finally(() => { if (pendingSave === entry) pendingSave = null })
+    return promise
+  }
+
+  async function saveNow(): Promise<void> {
     try {
       // A host that can show a dialog owns the write, so it decides the
-      // destination and reports back. Without one, the bytes are exported and
-      // recorded as saved, which is the most a browser build can honestly do.
+      // destination and reports back. In a browser, download the full JSON
+      // before recording the saved state.
       if (bridge.saveDocument) {
         const written = await bridge.saveDocument()
         if (written === null) {
@@ -328,20 +487,27 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
           status.value = 'Save cancelled'
           return
         }
-        await refresh()
+        await refresh(true)
         clearFailure()
         status.value = `Saved ${written}`
         return
       }
       const bytes = await bridge.exportBytes()
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/json' }))
+      try {
+        const link = document.createElement('a')
+        link.href = url
+        link.download = view.value?.displayName?.endsWith('.json') ? view.value.displayName : 'design.json'
+        document.body.append(link)
+        link.click()
+        link.remove()
+      } finally { window.setTimeout(() => URL.revokeObjectURL(url), 1000) }
       await bridge.noteSaved()
-      await refresh()
+      await refresh(true)
       clearFailure()
-      status.value = `Saved ${bytes.byteLength} bytes`
+      status.value = `Downloaded ${bytes.byteLength} bytes`
     } catch (cause) {
       report(cause, 'the document could not be saved')
-    } finally {
-      busy.value = false
     }
   }
 
@@ -386,7 +552,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
    * an error.
    */
   function activePage(): string | null {
-    return view.value?.pages[0]?.id ?? null
+    return activePageId.value
   }
 
   /**
@@ -419,17 +585,19 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     }
 
     const id = newIdentity()
+    const offset = 24 + ((view.value?.pages.find((entry) => entry.id === page)?.roots.length ?? 0) % 8) * 20
     await edit([
       {
         kind: 'create-node',
         node: id,
         nodeKind: kind,
-        name: name ?? null,
+        name: name ?? `${kind[0]?.toUpperCase()}${kind.slice(1)}`,
         // Left unset: the service supplies the kind's default, including a
         // registered font for text, which is knowledge this layer does not have.
         fill: null,
         parent: { in: 'page-root', page },
       },
+      { kind: 'set-node-position', node: id, position: [offset, offset] },
     ])
     // Selecting the new node is what makes the create visible: the inspector
     // fills in and the layer tree highlights it.
@@ -454,6 +622,15 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
    * or written, and nothing happens if it is declined.
    */
   function guardUnsaved(message: string, confirmLabel: string, action: () => void | Promise<void>): void {
+    if (disposed || confirmation.value || pendingReplacement) return
+    if (busy.value) {
+      pendingReplacement = true
+      void whenIdle().then(() => {
+        pendingReplacement = false
+        guardUnsaved(message, confirmLabel, action)
+      })
+      return
+    }
     if (!dirty.value) {
       void action()
       return
@@ -495,8 +672,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
       )
       return
     }
-    busy.value = true
-    void (async () => {
+    void enqueue(async () => {
       try {
         const opened = await openSampleFn()
         selectedId.value = null
@@ -505,10 +681,8 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
         status.value = `Opened ${opened.displayName ?? 'the sample'}`
       } catch (cause) {
         report(cause, 'the sample could not be opened')
-      } finally {
-        busy.value = false
       }
-    })()
+    })
   }
 
   function openSample(): void {
@@ -533,8 +707,7 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
       )
       return
     }
-    busy.value = true
-    void (async () => {
+    void enqueue(async () => {
       try {
         const opened = await openDocumentFn()
         if (opened === null) {
@@ -550,10 +723,8 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
         status.value = `Opened ${opened.displayName ?? 'document'}`
       } catch (cause) {
         report(cause, 'the document could not be opened')
-      } finally {
-        busy.value = false
       }
-    })()
+    })
   }
 
   function open(): void {
@@ -564,11 +735,58 @@ export function createEditorSession(bridge: EditorBridge): EditorSession {
     )
   }
 
+  function newDocument(): void {
+    if (!bridge.newDocument) return
+    guardUnsaved('Creating a document replaces the current document and discards its undo history.', 'Discard and create', () => enqueue(async () => {
+      try {
+        await bridge.newDocument!()
+        select(null)
+        activePageId.value = null
+        await refresh()
+        clearFailure()
+        status.value = 'New document — add a frame, shape or text'
+      } catch (cause) { report(cause, 'the document could not be created') }
+    }))
+  }
+
   function setZoom(next: number): void {
+    if (!Number.isFinite(next)) return
     zoom.value = Math.min(64, Math.max(0.02, next))
   }
 
+  function nudge(dx: number, dy: number): Promise<void> {
+    const id = selectedId.value
+    if (!id || confirmation.value) return Promise.resolve()
+    mutationSequence += 1
+    return enqueue(async () => {
+      const node = nodesById.value.get(id)
+      if (!node || node.props.positionIsLayoutDecided) return
+      const parent = node.parent ? layout.value?.nodes.find((entry) => entry.id === node.parent) : null
+      let localX = dx
+      let localY = dy
+      if (parent) {
+        const [a, b, c, d] = parent.world
+        const determinant = a * d - b * c
+        if (Math.abs(determinant) < 1e-10) {
+          status.value = 'This layer cannot move independently. Try moving its parent.'
+          return
+        }
+        localX = (d * dx - c * dy) / determinant
+        localY = (-b * dx + a * dy) / determinant
+      }
+      await editNow([{ kind: 'set-node-position', node: id,
+        position: [node.props.transform[4] + localX, node.props.transform[5] + localY] }])
+    })
+  }
+
+  async function setText(content: string, fontSize: number): Promise<void> {
+    const node = selectedId.value
+    if (node) await edit([{ kind: 'set-node-text', node, content, fontSize }])
+  }
+
   return {
+    previewUrl, dispose, whenIdle, nudge,
+    activePageId, selectPage, canUndo, canRedo, setText, newDocument, canNew: bridge.newDocument !== undefined,
     view,
     layout,
     nodesById,

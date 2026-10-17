@@ -24,7 +24,7 @@
       480,
       320
     ],
-    "renderEngine": "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD)",
+    "renderEngine": "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD, adapter v2)",
     "rounded": false,
     "scale": 1.0,
     "units": "design units"

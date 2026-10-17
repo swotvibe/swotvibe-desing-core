@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import {
-  Aperture,
   Circle,
   Hand,
-  MessageSquare,
   MousePointer2,
-  PenTool,
   Square,
   Trash2,
   Type,
@@ -16,15 +13,7 @@ import {
 import type { ToolId } from '@/editor/context'
 import { useEditorSession } from '@/editor/useEditor'
 
-/**
- * The floating tool palette.
- *
- * A creation tool is enabled only when the running build can create that kind,
- * which is asked once at start-up rather than discovered by failing. A tool that
- * is genuinely wired but cannot apply anywhere — because no document is open —
- * reports that when used, instead of being silently disabled and leaving the
- * person to guess why.
- */
+/** Creation is one action; Select drags layers and Hand pans the canvas. */
 const editor = useEditorSession()
 
 /** The node kind each creation tool creates, for the tools that create one. */
@@ -33,6 +22,9 @@ const CREATES: Partial<Record<ToolId, string>> = {
   shape: 'shape',
   text: 'text',
 }
+
+/** The selection tool also moves layers by dragging. */
+const SELECTS = 'select'
 
 interface PaletteTool {
   id: ToolId
@@ -43,24 +35,20 @@ interface PaletteTool {
 }
 
 const tools: PaletteTool[] = [
-  { id: 'move', label: 'Move', icon: MousePointer2, creates: false },
-  { id: 'select', label: 'Select', icon: Aperture, creates: false },
+  { id: 'select', label: 'Select', icon: MousePointer2, creates: false },
   { id: 'frame', label: 'Frame', icon: Square, creates: true },
   { id: 'shape', label: 'Shape', icon: Circle, creates: true },
-  { id: 'pen', label: 'Pen', icon: PenTool, creates: false },
   { id: 'text', label: 'Text', icon: Type, creates: true },
-  { id: 'comment', label: 'Comment', icon: MessageSquare, creates: false },
   { id: 'hand', label: 'Hand', icon: Hand, creates: false },
 ]
 
 /** Whether a tool can be used at all in this build. */
 function usable(tool: PaletteTool): boolean {
-  if (!tool.creates) {
-    // Move, select and hand change session state only, so they always work.
-    return tool.id === 'move' || tool.id === 'select' || tool.id === 'hand'
+  if (tool.creates) {
+    const kind = CREATES[tool.id]
+    return kind !== undefined && editor.canCreate(kind)
   }
-  const kind = CREATES[tool.id]
-  return kind !== undefined && editor.canCreate(kind)
+  return tool.id === SELECTS || tool.id === 'move' || tool.id === 'hand'
 }
 
 /** Why a tool is unavailable, in words a person can act on. */
@@ -92,7 +80,7 @@ function choose(tool: PaletteTool): void {
 
 <template>
   <div
-    class="pointer-events-auto absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-white/5 bg-shell-800/95 px-1.5 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur"
+    class="pointer-events-auto absolute bottom-12 left-1/2 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-white/5 bg-shell-800/95 px-1.5 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.5)] backdrop-blur"
     role="toolbar"
     aria-label="Tools"
   >
@@ -108,7 +96,7 @@ function choose(tool: PaletteTool): void {
             ? 'text-ink-300 hover:bg-shell-700'
             : 'text-ink-700'
       "
-      :disabled="!usable(tool)"
+      :disabled="!usable(tool) || (tool.creates && (editor.busy.value || !editor.activePageId.value))"
       :aria-pressed="editor.activeTool.value === tool.id"
       :title="reason(tool)"
       :aria-label="tool.label"
@@ -120,7 +108,7 @@ function choose(tool: PaletteTool): void {
     <button
       type="button"
       class="rounded-full p-2 text-ink-300 hover:bg-shell-700 disabled:text-ink-700"
-      :disabled="editor.selectedId.value === null"
+      :disabled="editor.selectedId.value === null || editor.busy.value"
       :title="
         editor.selectedId.value
           ? 'Delete the selected node'

@@ -1,0 +1,30 @@
+{
+  "source_page": "https://www.rockstargames.com/VI/media",
+  "retrieved_date": "2026-10-16",
+  "assets": [
+    {
+      "file": "jason-and-lucia-01.jpg",
+      "url": "https://www.rockstargames.com/VI/_next/static/media/Jason_and_Lucia_01.0naeahss9-1x6.jpg",
+      "bytes": 942720,
+      "sha256": "a691183cb7a018f7f9ea0f98d3507a7d35a6e182a7a7d9809532d00972d7594f"
+    },
+    {
+      "file": "vice-city-01.jpg",
+      "url": "https://www.rockstargames.com/VI/_next/static/media/Vice_City_01.135x56yoeu.6t.jpg",
+      "bytes": 492097,
+      "sha256": "6cf14b23ae2c205799067464904f8c9dc99f87935632ef6924b87f59af7a6225"
+    },
+    {
+      "file": "jason-lucia-lock-and-load.jpg",
+      "url": "https://www.rockstargames.com/VI/_next/static/media/Jason_Lucia_Lock_And_Load_landscape.0l9s5w7ih9p~3.jpg",
+      "bytes": 1280488,
+      "sha256": "70ff911e69ddd7464f59885b8dbf03a7cf0214170c0072f79c315255aad38784"
+    },
+    {
+      "file": "gta-vi-logo.png",
+      "url": "https://www.rockstargames.com/VI/_next/static/media/vi.0hxa9~pf214xe.png",
+      "bytes": 27804,
+      "sha256": "f1a4e777835a98fa0386106ef5a948e8fd590121ee0cd72daa191997ed979616"
+    }
+  ]
+}

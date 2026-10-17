@@ -17,17 +17,20 @@ import { useEditorSession } from '@/editor/useEditor'
  * stray Enter does not discard anything.
  */
 const editor = useEditorSession()
+const confirmButton = ref<HTMLButtonElement | null>(null)
+let previousFocus: HTMLElement | null = null
 const cancelButton = ref<HTMLButtonElement | null>(null)
 
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Enter') {
+  if (event.isComposing || event.keyCode === 229) return
+  event.stopImmediatePropagation()
+  if (event.key === 'Tab') {
     event.preventDefault()
-    // Enter takes the focused button; only an unfocused Enter defaults to cancel.
-    if (document.activeElement === cancelButton.value) {
-      editor.resolveConfirmation(false)
-    } else {
-      editor.resolveConfirmation(true)
-    }
+    if (document.activeElement === cancelButton.value) confirmButton.value?.focus()
+    else cancelButton.value?.focus()
+  } else if (event.key === 'Enter') {
+    event.preventDefault()
+    editor.resolveConfirmation(document.activeElement === confirmButton.value)
   } else if (event.key === 'Escape') {
     event.preventDefault()
     editor.resolveConfirmation(false)
@@ -38,11 +41,13 @@ watch(
   () => editor.awaitingConfirmation.value,
   async (asking) => {
     if (asking) {
+      previousFocus = document.activeElement as HTMLElement | null
       window.addEventListener('keydown', onKeydown, true)
       await nextTick()
       cancelButton.value?.focus()
     } else {
       window.removeEventListener('keydown', onKeydown, true)
+      previousFocus?.focus()
     }
   },
 )
@@ -98,6 +103,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown, true))
         <button
           type="button"
           class="rounded-md bg-red-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-red-500"
+          ref="confirmButton"
           data-test="confirm-accept"
           @click="editor.resolveConfirmation(true)"
         >

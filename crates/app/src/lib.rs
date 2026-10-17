@@ -79,9 +79,11 @@ mod error;
 mod session;
 
 pub use dto::{
-    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult,
-    LayoutNodeView, LayoutView, NodeIdString, NodeParent, NodeView, PageView, Preview,
-    PreviewOptions, PropsView, Rgba, StrokeView,
+    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HistoryView,
+    HitTestResult, LayoutNodeView, LayoutView, NodeIdString, NodeParent, NodeView, PageView,
+    Preview, PreviewOptions, PropsView, Rgba, StrokeView,
 };
 pub use error::{AppError, AppErrorCode};
 pub use session::{EditorSession, SharedTextEngine};
+pub use swotvibe_format::BundleLimits;
+pub use swotvibe_render::{PngDecodeLimits, RenderAssetLimits};

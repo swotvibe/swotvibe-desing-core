@@ -46,6 +46,8 @@ export interface PropsView {
   textContent: string | null
   fontFamily: string | null
   fontSize: number | null
+  fontWeight: number | null
+  textAlign: string | null
   textDirection: string | null
   imageAsset: string | null
   frameLayout: string | null
@@ -67,9 +69,22 @@ export interface PageView {
   roots: string[]
 }
 
+export interface HistoryView {
+  undoDepth: number
+  redoDepth: number
+  stepCapacity: number | null
+  byteCapacity: number | null
+  estimatedBytes: number
+  evictedEntries: number
+  lastCommitRetained: boolean | null
+}
+
 export interface DocumentView {
   revision: number
   dirty: boolean
+  canUndo?: boolean
+  canRedo?: boolean
+  history?: HistoryView
   displayName: string | null
   pages: PageView[]
   nodes: NodeView[]
@@ -128,6 +143,7 @@ export interface CommitSummary {
   dirty: boolean
   canUndo: boolean
   canRedo: boolean
+  history?: HistoryView
   addedNodes: string[]
   removedNodes: string[]
   changedNodes: string[]
@@ -151,6 +167,9 @@ export type EditCommand =
   | { kind: 'set-node-position'; node: string; position: [number, number] }
   | { kind: 'set-node-size'; node: string; size: [number, number] }
   | { kind: 'set-node-corner-radius'; node: string; radius: number }
+  | { kind: 'set-node-text'; node: string; content: string; fontSize: number }
+  | { kind: 'set-node-text-style'; node: string; fontFamily: string; fontWeight: number; align: 'start' | 'center' | 'end'; direction: 'auto' | 'ltr' | 'rtl' }
+  | { kind: 'set-node-image-asset'; node: string; asset: string | null }
 
 /**
  * Where a created or moved node goes.
@@ -169,6 +188,10 @@ export type NodeParent =
  * stated reason rather than discovered by failing.
  */
 export interface Capabilities {
+  editableCommands: string[]
+  textDirections: string[]
+  textAlignments: string[]
+  fontWeightRange: [number, number]
   creatableKinds: string[]
   /** The families a text node may name. Others cannot be measured. */
   fontFamilies: string[]
@@ -236,6 +259,9 @@ export class AppError extends Error {
  * when it does.
  */
 export interface EditorBridge {
+  /** This host can render the document using the native renderer. */
+  readonly rasterPreview?: boolean
+  newDocument?(): Promise<DocumentView>
   /** The open document. */
   getView(): Promise<DocumentView>
   /** What this build can do, asked once so controls reflect reality. */

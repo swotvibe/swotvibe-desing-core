@@ -28,22 +28,27 @@
 //! document. A preview carries the revision it was produced from so a caller can
 //! discard a stale image instead of showing it as current.
 
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use swotvibe_core::{
-    BatchError, Color, Command, Document, DocumentEngine, Node, NodeId, NodeKind, NodePlacement,
-    NodeProps, PageId, Position, Revision, Scalar, Size, Sizing, Snapshot, Transform,
-    validate_untrusted,
+    BatchError, Color, Command, CommandPlan, Document, DocumentEngine, Node, NodeId, NodeKind,
+    NodePlacement, NodeProps, PageId, Position, Revision, Scalar, Size, Sizing, Snapshot,
+    TextAlign, TextDirection, Transform, validate_untrusted,
 };
-use swotvibe_format::{export, from_json, import, to_json};
+use swotvibe_format::{
+    Bundle, BundleError, BundleLimits, export, from_json, import, pack_bundle, to_json,
+    unpack_bundle,
+};
 use swotvibe_layout::{LayoutEngine, LayoutOptions, LayoutResult, TaffyLayoutEngine};
-use swotvibe_render::{RenderAssets, RenderConfig, Renderer, VELLO_ENGINE_ID, VelloCpuRenderer};
+use swotvibe_render::{
+    RenderAssetLimits, RenderAssets, RenderConfig, Renderer, VELLO_ENGINE_ID, VelloCpuRenderer,
+};
 use swotvibe_text::TextLayoutEngine;
 
 use crate::dto::{
-    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HitTestResult,
-    LayoutNodeView, LayoutView, NodeParent, NodeView, PageView, Preview, PreviewOptions, PropsView,
-    Rgba, StrokeView,
+    Capabilities, CommitSummary, DocumentView, EditCommand, EditRequest, HistoryView,
+    HitTestResult, LayoutNodeView, LayoutView, NodeParent, NodeView, PageView, Preview,
+    PreviewOptions, PropsView, Rgba, StrokeView,
 };
 use crate::error::{AppError, AppErrorCode};
 
@@ -62,11 +67,17 @@ const DEFAULT_PREVIEW: PreviewOptions = PreviewOptions {
 /// host is written, not when it is first run.
 pub type SharedTextEngine = Arc<dyn TextLayoutEngine + Send + Sync>;
 
+struct StoredBundle {
+    assets: BTreeMap<swotvibe_core::AssetId, Vec<u8>>,
+    limits: BundleLimits,
+}
+
 /// One open document and everything the interface needs to edit it.
 pub struct EditorSession {
     engine: DocumentEngine,
     text: SharedTextEngine,
     assets: Option<RenderAssets>,
+    bundle: Option<StoredBundle>,
     display_name: Option<String>,
     /// The canonical bytes last loaded or successfully saved.
     baseline: Option<Vec<u8>>,
@@ -103,6 +114,7 @@ impl EditorSession {
             engine: DocumentEngine::new(),
             text,
             assets: None,
+            bundle: None,
             display_name: None,
             baseline: None,
             dirty: false,
@@ -113,6 +125,20 @@ impl EditorSession {
         // rather than a special case.
         session.baseline = canonical_of(&mut session.engine).ok();
         session
+    }
+
+    /// Creates a blank document with one page and an empty undo timeline.
+    ///
+    /// # Errors
+    /// Returns an application error if the initial page cannot be created or serialized.
+    pub fn new_document(&mut self) -> Result<DocumentView, AppError> {
+        let mut engine = DocumentEngine::new();
+        engine.apply(&[Command::CreatePage {
+            id: PageId::new(),
+            name: "Page 1".to_owned(),
+        }])?;
+        let bytes = canonical_of(&mut engine)?;
+        self.open_json(&bytes, Some("Untitled".to_owned()))
     }
 
     /// Supplies encoded image resources for a document that references assets.
@@ -138,6 +164,19 @@ impl EditorSession {
     #[must_use]
     pub fn can_redo(&self) -> bool {
         self.engine.can_redo()
+    }
+
+    /// Configures total retained steps and estimated bytes. `None` leaves an axis unbounded.
+    pub fn set_history_limits(&mut self, steps: Option<usize>, bytes: Option<usize>) {
+        let history = self.engine.history_mut();
+        history.set_capacity(steps);
+        history.set_byte_capacity(bytes);
+    }
+
+    /// Current retention, suitable for reporting at a commit boundary.
+    #[must_use]
+    pub fn history_status(&self) -> HistoryView {
+        self.engine.history().status().into()
     }
 
     /// The document's display name, when it has a source.
@@ -182,6 +221,9 @@ impl EditorSession {
         Ok(DocumentView {
             revision: revision.as_u64(),
             dirty: self.dirty,
+            can_undo: self.can_undo(),
+            can_redo: self.can_redo(),
+            history: self.history_status(),
             display_name: self.display_name.clone(),
             pages,
             nodes,
@@ -241,11 +283,50 @@ impl EditorSession {
 
         let mut engine = DocumentEngine::with_document(document);
         let baseline = canonical_of(&mut engine)?;
-        self.engine = engine;
+        self.engine.replace_document(engine.into_document());
         self.baseline = Some(baseline);
         self.dirty = false;
         self.display_name = display_name;
+        self.assets = None;
+        self.bundle = None;
         self.view()
+    }
+
+    /// Opens JSON or the existing native bundle container with embedded images.
+    ///
+    /// Limits belong to the caller. Parsing, validation and resource admission
+    /// finish before replacing the current document; a rejected file leaves it intact.
+    ///
+    /// # Errors
+    /// Returns schema, resource or rendering errors for invalid or over-budget input.
+    pub fn open_document(
+        &mut self,
+        bytes: &[u8],
+        display_name: Option<String>,
+        bundle_limits: BundleLimits,
+        render_limits: RenderAssetLimits,
+    ) -> Result<DocumentView, AppError> {
+        if !bytes.starts_with(b"PK") {
+            return self.open_json(bytes, display_name);
+        }
+        let bundle = unpack_bundle(bytes, bundle_limits).map_err(bundle_error)?;
+        let mut resources = RenderAssets::new(render_limits)?;
+        for (id, payload) in &bundle.assets {
+            resources.insert(*id, payload.clone())?;
+        }
+        let view = self.open_json(&to_json(&bundle.document)?, display_name)?;
+        self.assets = Some(resources);
+        self.bundle = Some(StoredBundle {
+            assets: bundle.assets,
+            limits: bundle_limits,
+        });
+        Ok(view)
+    }
+
+    /// The current development file container, for the host's save dialog.
+    #[must_use]
+    pub const fn document_extension(&self) -> &'static str {
+        if self.bundle.is_some() { "swv" } else { "json" }
     }
 
     /// Applies one atomic batch of edits.
@@ -306,7 +387,18 @@ impl EditorSession {
     /// Returns [`AppErrorCode::Schema`] when the document cannot be projected
     /// into its persisted form.
     pub fn export_bytes(&mut self) -> Result<Vec<u8>, AppError> {
-        canonical_of(&mut self.engine)
+        let json = canonical_of(&mut self.engine)?;
+        let Some(bundle) = &self.bundle else {
+            return Ok(json);
+        };
+        pack_bundle(
+            &Bundle {
+                document: from_json(&json)?,
+                assets: bundle.assets.clone(),
+            },
+            bundle.limits,
+        )
+        .map_err(bundle_error)
     }
 
     /// Records that the current bytes were written successfully.
@@ -500,7 +592,10 @@ impl EditorSession {
     /// an edit rather than letting the value disappear into the document.
     #[must_use]
     pub fn position_is_layout_decided(&self, id: NodeId) -> bool {
-        let document = self.engine.document();
+        Self::position_is_layout_decided_in(self.engine.document(), id)
+    }
+
+    fn position_is_layout_decided_in(document: &Document, id: NodeId) -> bool {
         let Some(parent) = document.parent_of(id) else {
             // A page root: a page has no layout rule, so the transform places it.
             return false;
@@ -528,6 +623,28 @@ impl EditorSession {
     #[must_use]
     pub fn capabilities(&self) -> Capabilities {
         Capabilities {
+            editable_commands: [
+                "create-node",
+                "delete-node",
+                "move-node",
+                "rename-node",
+                "set-node-fill",
+                "set-node-position",
+                "set-node-size",
+                "set-node-corner-radius",
+                "set-node-text",
+                "set-node-text-style",
+                "set-node-image-asset",
+            ]
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
+            text_directions: vec!["auto".to_owned()],
+            text_alignments: ["start", "center", "end"]
+                .iter()
+                .map(|name| (*name).to_owned())
+                .collect(),
+            font_weight_range: [1, 1000],
             creatable_kinds: ["frame", "group", "shape", "text", "image"]
                 .iter()
                 .map(|name| (*name).to_owned())
@@ -605,6 +722,7 @@ impl EditorSession {
             dirty: self.dirty,
             can_undo: self.engine.can_undo(),
             can_redo: self.engine.can_redo(),
+            history: self.history_status(),
             added_nodes: change_set.added_nodes().map(|id| id.to_string()).collect(),
             removed_nodes: change_set
                 .removed_nodes()
@@ -622,234 +740,335 @@ impl EditorSession {
         })
     }
 
-    /// Translates interface commands into kernel commands.
-    ///
-    /// Kernel existence is **not** checked for the structural commands — create,
-    /// delete, move, rename — because the kernel validates each against the state
-    /// as the batch applies, so a command may name a node an earlier command in
-    /// the same batch created. Pre-checking against the pre-state would reject
-    /// that legal batch and would duplicate the kernel's rules.
-    ///
-    /// ## Why property edits are merged
-    ///
-    /// The kernel replaces a node's properties as a whole, so changing one field
-    /// means reading the current value first — and that read sees the state
-    /// *before* the batch. Two property edits on the same node in one batch would
-    /// therefore both start from the same old value and the second would silently
-    /// discard the first. Merging them into one replacement is what makes a batch
-    /// mean what it says.
+    /// Builds an ordered plan against staged state. A later property edit sees
+    /// earlier creations, moves and deletions; no property write is moved across
+    /// a structural command. Only the final plan becomes one live transaction.
     fn to_kernel_commands(&self, commands: &[EditCommand]) -> Result<Vec<Command>, AppError> {
-        let mut out = Vec::with_capacity(commands.len());
-        // Property edits by target node, in first-appearance order, so a merged
-        // replacement lands where its first command did.
-        let mut pending: Vec<(NodeId, usize)> = Vec::new();
-
+        let mut plan = CommandPlan::new(self.engine.document());
         for command in commands {
-            match command {
-                EditCommand::CreateNode {
-                    node,
-                    node_kind,
-                    name,
-                    fill,
+            let translated = self.translate_command(plan.document(), command)?;
+            for command in translated {
+                plan.push(command)?;
+            }
+        }
+        Ok(plan.into_commands()?)
+    }
+
+    fn translate_command(
+        &self,
+        document: &Document,
+        command: &EditCommand,
+    ) -> Result<Vec<Command>, AppError> {
+        let mut out = Vec::new();
+        match command {
+            EditCommand::CreateNode {
+                node,
+                node_kind,
+                name,
+                fill,
+                parent,
+            } => {
+                let id = parse_node(node)?;
+                let kind = parse_kind(node_kind)?;
+                let parent = Self::to_kernel_placement(document, parent)?;
+                out.push(Command::CreateNode {
+                    id,
+                    kind,
+                    name: name.clone(),
                     parent,
-                } => {
-                    let id = parse_node(node)?;
-                    let kind = parse_kind(node_kind)?;
-                    let parent = self.to_kernel_placement(parent)?;
-                    out.push(Command::CreateNode {
-                        id,
-                        kind,
-                        name: name.clone(),
-                        parent,
-                    });
-                    // A created node starts with the tool's defaults for its kind,
-                    // with any requested fill applied on top. One command, so the
-                    // batch stays small and the intent is one statement: this is
-                    // what a new node is.
-                    let mut props = self.creation_props(kind);
-                    if let Some(fill) = fill {
-                        props.fill = Some(Color {
-                            r: fill.r,
-                            g: fill.g,
-                            b: fill.b,
-                            a: fill.a,
-                        });
-                    }
-                    self.stage_props(&mut out, &mut pending, id, props)?;
-                }
-                EditCommand::DeleteNode { node } => {
-                    out.push(Command::DeleteNode {
-                        id: parse_node(node)?,
-                    });
-                }
-                EditCommand::MoveNode { node, parent } => {
-                    let id = parse_node(node)?;
-                    let parent = self.to_kernel_placement(parent)?;
-                    out.push(Command::MoveNode { id, parent });
-                }
-                EditCommand::RenameNode { node, name } => {
-                    out.push(Command::RenameNode {
-                        id: parse_node(node)?,
-                        name: name.clone(),
-                    });
-                }
-                EditCommand::SetNodeFill { node, fill } => {
-                    let id = parse_node(node)?;
-                    let mut props = self.pending_props(&out, &pending, id)?.clone();
-                    props.fill = fill.map(|fill| Color {
+                });
+                // A created node starts with the tool's defaults for its kind,
+                // with any requested fill applied on top. One command, so the
+                // batch stays small and the intent is one statement: this is
+                // what a new node is.
+                let mut props = self.creation_props(kind);
+                if let Some(fill) = fill {
+                    props.fill = Some(Color {
                         r: fill.r,
                         g: fill.g,
                         b: fill.b,
                         a: fill.a,
                     });
-                    self.stage_props(&mut out, &mut pending, id, props)?;
                 }
-                EditCommand::SetNodePosition { node, position } => {
-                    let id = parse_node(node)?;
-                    // Inside a flex container the layout decides where a child
-                    // sits, so a stored translation would be written and then
-                    // ignored. Refusing says why; accepting silently would make
-                    // the interface look broken.
-                    if self.position_is_layout_decided(id) {
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::DeleteNode { node } => {
+                out.push(Command::DeleteNode {
+                    id: parse_node(node)?,
+                });
+            }
+            EditCommand::MoveNode { node, parent } => {
+                let id = parse_node(node)?;
+                let parent = Self::to_kernel_placement(document, parent)?;
+                out.push(Command::MoveNode { id, parent });
+            }
+            EditCommand::RenameNode { node, name } => {
+                out.push(Command::RenameNode {
+                    id: parse_node(node)?,
+                    name: name.clone(),
+                });
+            }
+            EditCommand::SetNodeFill { node, fill } => {
+                let id = parse_node(node)?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                props.fill = fill.map(|fill| Color {
+                    r: fill.r,
+                    g: fill.g,
+                    b: fill.b,
+                    a: fill.a,
+                });
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodePosition { node, position } => {
+                let id = parse_node(node)?;
+                // Inside a flex container the layout decides where a child
+                // sits, so a stored translation would be written and then
+                // ignored. Refusing says why; accepting silently would make
+                // the interface look broken.
+                if Self::position_is_layout_decided_in(document, id) {
+                    return Err(AppError::on_node(
+                        AppErrorCode::CommandRejected,
+                        id,
+                        "the parent lays out its children, so this node's position is not \
+                             its own to set",
+                    ));
+                }
+                let [x, y] = *position;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                let existing_coefficients = props.transform.coefficients();
+                // Only the translation changes: the linear part — rotation,
+                // scale, skew — is a separate decision and is left alone.
+                props.transform = Transform::new([
+                    existing_coefficients[0],
+                    existing_coefficients[1],
+                    existing_coefficients[2],
+                    existing_coefficients[3],
+                    x,
+                    y,
+                ])
+                .map_err(|error| {
+                    AppError::on_node(
+                        AppErrorCode::InvalidRequest,
+                        id,
+                        format!("the position [{x}, {y}] is not usable: {error}"),
+                    )
+                })?;
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodeSize { node, size } => {
+                let id = parse_node(node)?;
+                let [width, height] = *size;
+                let size_value = Size::new(width, height).map_err(|error| {
+                    AppError::on_node(
+                        AppErrorCode::InvalidRequest,
+                        id,
+                        format!("the size [{width}, {height}] is not usable: {error}"),
+                    )
+                })?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                props.size = size_value;
+                // A stored size only has an effect on a fixed axis, so setting
+                // one states the intent rather than writing a value that hug
+                // would ignore.
+                props.width_sizing = Sizing::Fixed;
+                props.height_sizing = Sizing::Fixed;
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodeText {
+                node,
+                content,
+                font_size,
+            } => {
+                let id = parse_node(node)?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                let swotvibe_core::Content::Text(text) = &mut props.content else {
+                    return Err(AppError::on_node(
+                        AppErrorCode::CommandRejected,
+                        id,
+                        "only a text node has text content",
+                    ));
+                };
+                if !font_size.is_finite() || *font_size <= 0.0 {
+                    return Err(AppError::on_node(
+                        AppErrorCode::InvalidRequest,
+                        id,
+                        "font size must be positive and finite",
+                    ));
+                }
+                text.content.clone_from(content);
+                text.font_size = Scalar::new(*font_size).map_err(|error| {
+                    AppError::on_node(AppErrorCode::InvalidRequest, id, error.to_string())
+                })?;
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodeTextStyle {
+                node,
+                font_family,
+                font_weight,
+                align,
+                direction,
+            } => {
+                let id = parse_node(node)?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                let swotvibe_core::Content::Text(text) = &mut props.content else {
+                    return Err(AppError::on_node(
+                        AppErrorCode::CommandRejected,
+                        id,
+                        "only a text node has a text style",
+                    ));
+                };
+                if !(1..=1000).contains(font_weight) {
+                    return Err(AppError::on_node(
+                        AppErrorCode::InvalidRequest,
+                        id,
+                        "font weight must be in 1..=1000",
+                    ));
+                }
+                self.text
+                    .fonts()
+                    .require_family(font_family)
+                    .map_err(|error| {
+                        AppError::on_node(AppErrorCode::InvalidRequest, id, error.to_string())
+                    })?;
+                let alignment = match align.as_str() {
+                    "start" => TextAlign::Start,
+                    "center" => TextAlign::Center,
+                    "end" => TextAlign::End,
+                    _ => {
+                        return Err(AppError::on_node(
+                            AppErrorCode::InvalidRequest,
+                            id,
+                            "text alignment must be start, center or end",
+                        ));
+                    }
+                };
+                match direction.as_str() {
+                    "auto" => {}
+                    "ltr" | "rtl" => {
                         return Err(AppError::on_node(
                             AppErrorCode::CommandRejected,
                             id,
-                            "the parent lays out its children, so this node's position is not \
-                             its own to set",
+                            "this build resolves text direction automatically; forced paragraph direction is unsupported",
                         ));
                     }
-                    let [x, y] = *position;
-                    let mut props = self.pending_props(&out, &pending, id)?.clone();
-                    let existing_coefficients = props.transform.coefficients();
-                    // Only the translation changes: the linear part — rotation,
-                    // scale, skew — is a separate decision and is left alone.
-                    props.transform = Transform::new([
-                        existing_coefficients[0],
-                        existing_coefficients[1],
-                        existing_coefficients[2],
-                        existing_coefficients[3],
-                        x,
-                        y,
-                    ])
-                    .map_err(|error| {
-                        AppError::on_node(
+                    _ => {
+                        return Err(AppError::on_node(
                             AppErrorCode::InvalidRequest,
                             id,
-                            format!("the position [{x}, {y}] is not usable: {error}"),
-                        )
-                    })?;
-                    self.stage_props(&mut out, &mut pending, id, props)?;
+                            "text direction must be auto, ltr or rtl",
+                        ));
+                    }
                 }
-                EditCommand::SetNodeSize { node, size } => {
-                    let id = parse_node(node)?;
-                    let [width, height] = *size;
-                    let size_value = Size::new(width, height).map_err(|error| {
-                        AppError::on_node(
-                            AppErrorCode::InvalidRequest,
-                            id,
-                            format!("the size [{width}, {height}] is not usable: {error}"),
-                        )
-                    })?;
-                    let mut props = self.pending_props(&out, &pending, id)?.clone();
-                    props.size = size_value;
-                    // A stored size only has an effect on a fixed axis, so setting
-                    // one states the intent rather than writing a value that hug
-                    // would ignore.
-                    props.width_sizing = Sizing::Fixed;
-                    props.height_sizing = Sizing::Fixed;
-                    self.stage_props(&mut out, &mut pending, id, props)?;
-                }
-                EditCommand::SetNodeCornerRadius { node, radius } => {
-                    let id = parse_node(node)?;
-                    let mut props = self.pending_props(&out, &pending, id)?.clone();
-                    match &mut props.content {
-                        swotvibe_core::Content::Shape(shape) => {
-                            shape.corner_radius = Scalar::new(*radius).map_err(|error| {
-                                AppError::on_node(
-                                    AppErrorCode::InvalidRequest,
-                                    id,
-                                    format!("the corner radius {radius} is not usable: {error}"),
-                                )
-                            })?;
-                        }
-                        // Only a shape has a corner. Refusing is honest: silently
-                        // accepting would store nothing and report success.
-                        _ => {
+                text.font_family.clone_from(font_family);
+                text.font_weight = *font_weight;
+                text.align = alignment;
+                text.direction = TextDirection::Auto;
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodeImageAsset { node, asset } => {
+                let id = parse_node(node)?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                let swotvibe_core::Content::Image(image) = &mut props.content else {
+                    return Err(AppError::on_node(
+                        AppErrorCode::CommandRejected,
+                        id,
+                        "only an image node has an image asset",
+                    ));
+                };
+                image.asset = match asset {
+                    None => None,
+                    Some(value) => {
+                        let asset = value.parse::<swotvibe_core::AssetId>().map_err(|error| {
+                            AppError::on_node(
+                                AppErrorCode::InvalidRequest,
+                                id,
+                                format!("invalid asset identity: {error}"),
+                            )
+                        })?;
+                        if document.asset(asset).is_none() {
                             return Err(AppError::on_node(
                                 AppErrorCode::CommandRejected,
                                 id,
-                                "only a shape node has a corner radius",
+                                "the asset is not registered in this document",
                             ));
                         }
+                        if !self
+                            .assets
+                            .as_ref()
+                            .is_some_and(|resources| resources.contains(asset))
+                        {
+                            return Err(AppError::on_node(
+                                AppErrorCode::CommandRejected,
+                                id,
+                                "the asset has no available image payload",
+                            ));
+                        }
+                        Some(asset)
                     }
-                    self.stage_props(&mut out, &mut pending, id, props)?;
+                };
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
+            }
+            EditCommand::SetNodeCornerRadius { node, radius } => {
+                let id = parse_node(node)?;
+                let mut props = Self::require_node(document, id)?.props.clone();
+                match &mut props.content {
+                    swotvibe_core::Content::Shape(shape) => {
+                        shape.corner_radius = Scalar::new(*radius).map_err(|error| {
+                            AppError::on_node(
+                                AppErrorCode::InvalidRequest,
+                                id,
+                                format!("the corner radius {radius} is not usable: {error}"),
+                            )
+                        })?;
+                    }
+                    // Only a shape has a corner. Refusing is honest: silently
+                    // accepting would store nothing and report success.
+                    _ => {
+                        return Err(AppError::on_node(
+                            AppErrorCode::CommandRejected,
+                            id,
+                            "only a shape node has a corner radius",
+                        ));
+                    }
                 }
+                out.push(Command::SetNodeProps {
+                    id,
+                    props: Box::new(props),
+                });
             }
         }
         Ok(out)
     }
 
-    /// The node, or a typed error naming it.
-    ///
-    /// Used by every property edit, which needs the current value to build the
-    /// replacement the kernel expects.
-    fn require_node(&self, id: NodeId) -> Result<&Node, AppError> {
-        self.engine.document().node(id).ok_or_else(|| {
+    fn require_node(document: &Document, id: NodeId) -> Result<&Node, AppError> {
+        document.node(id).ok_or_else(|| {
             AppError::on_node(
                 AppErrorCode::UnknownNode,
                 id,
                 "the node is not in the document",
             )
         })
-    }
-
-    /// The properties a staged property edit should start from.
-    ///
-    /// An edit already staged for this node in this batch wins, because its
-    /// replacement is the newer value; otherwise the document's current value is
-    /// the base. Without this, two property edits on one node in one batch would
-    /// both start from the pre-batch state and the second would discard the first.
-    fn pending_props<'a>(
-        &'a self,
-        out: &'a [Command],
-        pending: &[(NodeId, usize)],
-        id: NodeId,
-    ) -> Result<&'a NodeProps, AppError> {
-        if let Some((_, index)) = pending.iter().find(|(node, _)| *node == id)
-            && let Some(Command::SetNodeProps { props, .. }) = out.get(*index)
-        {
-            return Ok(props.as_ref());
-        }
-        Ok(&self.require_node(id)?.props)
-    }
-
-    /// Records a property replacement, merging with one already staged for the
-    /// same node.
-    ///
-    /// The batch keeps one replacement per node, positioned where that node's
-    /// first property edit appeared, so the command order a caller reads still
-    /// matches the order it wrote.
-    fn stage_props(
-        &self,
-        out: &mut Vec<Command>,
-        pending: &mut Vec<(NodeId, usize)>,
-        id: NodeId,
-        props: NodeProps,
-    ) -> Result<(), AppError> {
-        if let Some((_, index)) = pending.iter().find(|(node, _)| *node == id)
-            && let Some(Command::SetNodeProps { props: slot, .. }) = out.get_mut(*index)
-        {
-            // Replace what is inside the existing box rather than allocating a
-            // new one: this runs once per property edit in a batch.
-            **slot = props;
-            return Ok(());
-        }
-        pending.push((id, out.len()));
-        out.push(Command::SetNodeProps {
-            id,
-            props: Box::new(props),
-        });
-        Ok(())
     }
 
     /// The family a new text node should start with.
@@ -919,8 +1138,10 @@ impl EditorSession {
     /// kernel's: a created or moved node goes to the end of its container, which
     /// is what every caller so far wants, and the kernel's richer positions stay
     /// available for a future reorder command.
-    fn to_kernel_placement(&self, parent: &NodeParent) -> Result<NodePlacement, AppError> {
-        let document = self.engine.document();
+    fn to_kernel_placement(
+        document: &Document,
+        parent: &NodeParent,
+    ) -> Result<NodePlacement, AppError> {
         match parent {
             NodeParent::PageRoot { page } => {
                 let page = parse_page(page)?;
@@ -993,6 +1214,15 @@ impl EditorSession {
         let engine = TaffyLayoutEngine::new(self.adapter_text());
         Ok(engine.layout(snapshot, page, &options)?)
     }
+}
+
+fn bundle_error(error: BundleError) -> AppError {
+    let code = if matches!(error, BundleError::Limit { .. }) {
+        AppErrorCode::ResourceLimit
+    } else {
+        AppErrorCode::Schema
+    };
+    AppError::new(code, error.to_string())
 }
 
 /// Projects a document into its canonical persisted bytes.
@@ -1132,6 +1362,21 @@ fn props_view_of(node: &Node, position_is_layout_decided: bool) -> PropsView {
         text_content,
         font_family,
         font_size,
+        font_weight: match &props.content {
+            swotvibe_core::Content::Text(text) => Some(text.font_weight),
+            _ => None,
+        },
+        text_align: match &props.content {
+            swotvibe_core::Content::Text(text) => Some(
+                match text.align {
+                    TextAlign::Start => "start",
+                    TextAlign::Center => "center",
+                    TextAlign::End => "end",
+                }
+                .to_owned(),
+            ),
+            _ => None,
+        },
         text_direction,
         image_asset,
         frame_layout,

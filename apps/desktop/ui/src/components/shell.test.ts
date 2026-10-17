@@ -1,5 +1,5 @@
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '@/App.vue'
 import { SampleEditorBridge } from '@/bridge/sample'
@@ -24,6 +24,10 @@ import { createEditorSession } from '@/editor/useEditor'
  * What is not covered here — geometry, hit-testing, revisions, byte-stable save —
  * is covered in Rust, where those rules live.
  */
+
+enableAutoUnmount(afterEach)
+beforeEach(() => { vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {}) })
+afterEach(() => { vi.restoreAllMocks(); document.body.innerHTML = '' })
 
 const CARD = '018f0000-0000-7000-8000-000000020001'
 const HEADER = '018f0000-0000-7000-8000-000000020002'
@@ -88,6 +92,10 @@ class VanishingBridge implements EditorBridge {
 
   capabilities(): Promise<Capabilities> {
     return Promise.resolve({
+      editableCommands: [],
+      textDirections: ['auto'],
+      textAlignments: ['start', 'center', 'end'],
+      fontWeightRange: [1, 1000],
       creatableKinds: ['shape'],
       fontFamilies: ['Inter'],
       renderer: 'test',
@@ -142,6 +150,8 @@ function props(): PropsView {
     textContent: null,
     fontFamily: null,
     fontSize: null,
+    fontWeight: null,
+    textAlign: null,
     textDirection: null,
     imageAsset: null,
     frameLayout: null,
@@ -295,14 +305,14 @@ describe('editing a property', () => {
 })
 
 describe('undo with an empty timeline', () => {
-  it('surfaces a typed failure instead of doing nothing quietly', async () => {
+  it('disables undo when there is no history', async () => {
     const { shell } = await mountShell()
 
     await shell.find('button[aria-label="Undo"]').trigger('click')
     await flushPromises()
 
-    expect(shell.text()).toContain('history')
-    expect(shell.text()).toContain('nothing to undo')
+    expect(shell.find('button[aria-label="Undo"]').attributes('disabled')).toBeDefined()
+    expect(shell.find('[role="alert"]').exists()).toBe(false)
   })
 })
 
@@ -620,8 +630,7 @@ describe('editing geometry', () => {
     // matching the service's refusal.
     await selectLayer(shell, 'Latin')
     await flushPromises()
-    expect(shell.find('input[aria-label="R"]').attributes('disabled')).toBeDefined()
-    expect(shell.text()).toContain('Only a shape has a corner radius')
+    expect(shell.find('input[aria-label="R"]').exists()).toBe(false)
   })
 
   it('drops a half-typed number instead of storing it', async () => {
@@ -647,7 +656,7 @@ describe('editing geometry', () => {
 
     // The schema has no opacity, so the panel says so rather than showing a
     // value that nothing can change.
-    expect(shell.text()).toContain('Not in the schema yet')
+    expect(shell.find('input[aria-label="Opacity"]').exists()).toBe(false)
   })
 })
 
@@ -830,8 +839,8 @@ describe('the tool palette', () => {
 
     // Nothing is behind these two yet, and a control that looks live and does
     // nothing is worse than one that is visibly unavailable.
-    expect(shell.find('button[aria-label="Pen"]').attributes('disabled')).toBeDefined()
-    expect(shell.find('button[aria-label="Comment"]').attributes('disabled')).toBeDefined()
+    expect(shell.find('button[aria-label="Pen"]').exists()).toBe(false)
+    expect(shell.find('button[aria-label="Comment"]').exists()).toBe(false)
 
     // Select stays pressed until a creation tool acts.
     expect(shell.find('button[aria-label="Select"]').attributes('aria-pressed')).toBe('true')
@@ -840,9 +849,7 @@ describe('the tool palette', () => {
   it('names why an unavailable tool is unavailable', async () => {
     const { shell } = await mountShell()
 
-    expect(shell.find('button[aria-label="Pen"]').attributes('title')).toContain(
-      'not available yet',
-    )
+    expect(shell.find('button[aria-label="Hand"]').attributes('disabled')).toBeUndefined()
     expect(shell.find('button[aria-label="Shape"]').attributes('title')).toContain('shape')
   })
 
@@ -866,14 +873,14 @@ describe('the canvas', () => {
     const stage = shell.find('[data-test="stage"]')
     expect(stage.exists()).toBe(true)
 
-    // The artboard is drawn at the current zoom (21%), so the stage element is
-    // the only place that knows the screen-to-page mapping. A click at 11px
+    // The artboard is drawn at the current zoom (100%), so the stage element is
+    // the only place that knows the screen-to-page mapping. A click at 52px
     // lands near page unit 52, which is inside the frame but outside the header.
     const element = stage.element as HTMLElement
     element.getBoundingClientRect = () =>
       ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0 }) as DOMRect
 
-    await stage.trigger('click', { clientX: 11, clientY: 11 })
+    await stage.trigger('click', { clientX: 52, clientY: 52 })
     await flushPromises()
 
     const selected = shell.findAll('[role="treeitem"][aria-selected="true"]')

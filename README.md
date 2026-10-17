@@ -19,12 +19,12 @@ rasterized by one renderer, and compared against committed references.
 | 5. An edit with undo, redo, and a round trip | Covered |
 | 6. A batch that fails at its last command leaves no trace | Covered |
 
-The reference images are **visually approved**: both fingerprints record
-`reviewed` as the project owner's approval of visual formatting and text
-orientation on 2026-10-06, so the M0 visual gate is closed. What stays open is
-the engine choice — no `DEC-LAYOUT`, `DEC-TEXT-AR`, or `DEC-RENDERER` decision
-is closed, and the three backends remain provisional, chosen so the slice can
-pass through real adapters rather than selected.
+The M0 reference images were regenerated on 2026-10-16 after correcting
+variable-font outlines and image fitting. Their current review status is
+**pending human review**; the owner's 2026-10-06 approval applies to the earlier
+pixels. The accepted layered GTA VI composition is a separate authoring
+acceptance case. Layout, text and render backend choices remain provisional
+(ADR-0006 through ADR-0008).
 
 Local Windows validation has passed for workspace tests, formatting, Clippy,
 dependency license/advisory checks, Python `zipfile`, Info-ZIP
@@ -43,15 +43,14 @@ and the [technical specification](./docs/architecture/core-kernel-technical-spec
 The M1 work keeps that matrix green and adds an interface job — Node, type-check,
 component tests, and a production build
 ([workflow results](https://github.com/swotvibe/swotvibe-desing-core/actions/runs/37434712462)).
-The desktop host is deliberately not in CI: its platform libraries are not on a
-headless runner, and a host that has not been built on a platform must not be
-reported as passing there.
+The UI branch also checks the desktop host, real IPC handler and standalone
+build on Windows. Native Linux and macOS host builds are not claimed.
 
 ## Workspace
 
 The [2026-10-16 core review](./docs/architecture/core-foundation-review-2026-10-16.md)
-fixes compound-batch undo, preserves removed page/node/asset metadata, adds
-validated command planning, and provides configurable history retention across
+fixes compound-batch undo, preserves removed page/node/asset metadata, stages
+application commands in order, and adds configurable history retention across
 both undo and redo. The existing 256-step default remains; the estimated-byte
 ceiling is unconfigured until representative workloads justify a host policy.
 
@@ -85,7 +84,7 @@ reference, not an approved product design.
 | Path | What it is | State |
 |---|---|---|
 | `src-tauri` | Tauri 2 host: window, native file dialogs, and thin IPC commands over `swotvibe-app` | Builds and runs on Windows; acceptance gate partial |
-| `ui` | Vue 3 + Vite interface, TypeScript `6.0.3` pinned | Builds; 17 component tests pass |
+| `ui` | Vue 3 + Vite interface, TypeScript `6.0.3` pinned | Builds; 92 interface tests pass |
 
 The host is its own Cargo workspace on purpose: its platform libraries are not
 available on a headless CI runner, and including it in the repository workspace
@@ -108,6 +107,28 @@ product to a desktop launch.
 Adapters and tools depend on `core`; `core` does not depend on them. The text
 and layout crates are the only ones that know their backend's types, and those
 types never reach the document or the file schema.
+
+## Native authoring foundation
+
+`main` carries the headless kernel, application service, file format and render
+adapters. `UI` adds the Vue/Tauri desktop editor and incorporates `main` updates.
+Shared Rust code and acceptance fixtures are kept identical across the branches.
+
+`EditorSession::apply` supports atomic creation, text styling and image binding
+against a revision-tagged document. The native authoring acceptance test starts
+with an empty page and seven prepared resources, executes 109 public commands,
+and reproduces the 22-layer composition with seven editable text layers. It
+checks undo/redo, asset preservation and identical rendering after save/reopen.
+See the [implementation contract](./docs/architecture/agent-step-1-native-authoring.md).
+
+```sh
+cargo test -p swotvibe-app --test native_authoring_poster --locked
+```
+
+The test writes a native `.swv`, preview and report under
+`tests/golden/native-authoring/out/`. `.swv` is the development host's bundle
+extension, not a newly published stable format. Generated delivery files under
+`output/` stay local. No model SDK or design-agent runtime is installed.
 
 ## Pinned fonts
 
@@ -167,4 +188,5 @@ the latest passing evidence.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Source code: MIT. See [LICENSE](./LICENSE). Third-party image assets retain
+their original attribution; see [native authoring fixture provenance](./tests/fixtures/native-authoring/README.md).

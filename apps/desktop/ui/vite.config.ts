@@ -20,6 +20,13 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    // The pinned document fonts are shared with Rust outside the UI package.
+    fs: {
+      allow: [
+        fileURLToPath(new URL('.', import.meta.url)),
+        fileURLToPath(new URL('../../../assets/fonts', import.meta.url)),
+      ],
+    },
   },
   build: {
     // The interface ships inside a desktop bundle, so source maps are useful

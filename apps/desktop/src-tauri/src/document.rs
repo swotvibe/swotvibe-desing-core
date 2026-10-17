@@ -21,10 +21,12 @@
 //! crash mid-replacement; it belongs to the headless tooling, which owns
 //! backups. A host editor's job is to not corrupt the document it was given.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use swotvibe_app::{AppError, AppErrorCode, DocumentView};
+use swotvibe_app::{
+    AppError, AppErrorCode, BundleLimits, DocumentView, PngDecodeLimits, RenderAssetLimits,
+};
 use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
 
@@ -35,7 +37,28 @@ use crate::commands::{EditorState, IpcError, IpcResult};
 /// The extension is not published as a stable product format; it is what the
 /// current schema's JSON is written as, and `ADR-0003` keeps the container
 /// question open.
-const DOCUMENT_EXTENSION: &str = "json";
+// Finite development-host admission policy, not a published product/file limit.
+pub(crate) const BUNDLE_LIMITS: BundleLimits = BundleLimits {
+    max_archive_bytes: 64 * 1024 * 1024,
+    max_manifest_bytes: 8 * 1024 * 1024,
+    max_assets: 256,
+    max_asset_bytes: 16 * 1024 * 1024,
+    max_total_asset_bytes: 48 * 1024 * 1024,
+};
+pub(crate) const RENDER_LIMITS: RenderAssetLimits = RenderAssetLimits {
+    max_asset_bytes: 16 * 1024 * 1024,
+    max_svg_width: 4096,
+    max_svg_height: 4096,
+    max_svg_pixels: 16 * 1024 * 1024,
+    png: PngDecodeLimits {
+        max_input_bytes: 16 * 1024 * 1024,
+        max_width: 4096,
+        max_height: 4096,
+        max_pixels: 16 * 1024 * 1024,
+        max_output_bytes: 64 * 1024 * 1024,
+        max_decoder_bytes: 64 * 1024 * 1024,
+    },
+};
 
 /// Asks for a file, reads it, and opens it.
 ///
@@ -58,20 +81,37 @@ pub async fn open_document(
         return Ok(None);
     };
 
-    let bytes = std::fs::read(&path).map_err(|error| {
+    open_path(&state, &path).map(Some)
+}
+
+pub(crate) fn open_path(state: &EditorState, path: &Path) -> IpcResult<DocumentView> {
+    let file = std::fs::File::open(path).map_err(|error| {
         AppError::new(
             AppErrorCode::DocumentRead,
-            format!("cannot read {}: {error}", file_label(&path)),
+            format!("cannot read {}: {error}", file_label(path)),
         )
     })?;
+    let mut bytes = Vec::new();
+    file.take(BUNDLE_LIMITS.max_archive_bytes as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| AppError::new(AppErrorCode::DocumentRead, error.to_string()))?;
+    if bytes.len() > BUNDLE_LIMITS.max_archive_bytes {
+        return Err(AppError::new(
+            AppErrorCode::ResourceLimit,
+            "the document exceeds this development host's 64 MiB file limit",
+        )
+        .into());
+    }
 
     // Only the file name is reported. It is what a title bar shows, and it is the
     // one part of a location a person expects to see.
     let display_name = path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned());
-    let view = state.lock_document().open_json(&bytes, display_name)?;
-    Ok(Some(view))
+    state
+        .lock_document()
+        .open_document(&bytes, display_name, BUNDLE_LIMITS, RENDER_LIMITS)
+        .map_err(IpcError::from)
 }
 
 /// Opens the committed M0 sample.
@@ -121,7 +161,8 @@ pub async fn save_document(
     window: Window,
     state: State<'_, EditorState>,
 ) -> Result<Option<String>, IpcError> {
-    let Some(path) = pick_save_path(&window) else {
+    let extension = state.lock_document().document_extension();
+    let Some(path) = pick_save_path(&window, extension) else {
         return Ok(None);
     };
 
@@ -147,17 +188,17 @@ fn pick_open_path(window: &Window) -> Option<PathBuf> {
     let chosen = window
         .dialog()
         .file()
-        .add_filter("Design document", &[DOCUMENT_EXTENSION])
+        .add_filter("Design document", &["json", "swv"])
         .blocking_pick_file();
     chosen.and_then(|path| path.into_path().ok())
 }
 
-fn pick_save_path(window: &Window) -> Option<PathBuf> {
+fn pick_save_path(window: &Window, extension: &str) -> Option<PathBuf> {
     let chosen = window
         .dialog()
         .file()
-        .add_filter("Design document", &[DOCUMENT_EXTENSION])
-        .set_file_name("design.json")
+        .add_filter("Design document", &[extension])
+        .set_file_name(format!("design.{extension}"))
         .blocking_save_file();
     chosen.and_then(|path| path.into_path().ok())
 }

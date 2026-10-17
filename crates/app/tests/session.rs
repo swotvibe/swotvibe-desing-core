@@ -1903,3 +1903,295 @@ fn an_edit_request_crosses_the_wire_in_the_documented_shape() {
     let parsed: EditRequest = serde_json::from_value(json).expect("the request parses");
     assert_eq!(parsed, request);
 }
+
+#[test]
+fn new_document_has_an_editable_page_and_resets_history() {
+    let mut session = open_sample();
+    let view = session.new_document().expect("new document");
+    assert_eq!(view.pages.len(), 1);
+    assert!(view.nodes.is_empty());
+    assert!(!view.can_undo);
+    assert!(!view.can_redo);
+    assert!(!view.dirty);
+}
+
+#[test]
+fn text_edits_round_trip_and_are_undoable() {
+    let mut session = open_sample();
+    let before = session.node_props(sample::LATIN).unwrap();
+    session
+        .apply(&EditRequest {
+            expected_revision: session.revision().as_u64(),
+            commands: vec![EditCommand::SetNodeText {
+                node: sample::LATIN.to_owned(),
+                content: "Edited text\nSecond line".to_owned(),
+                font_size: 30.0,
+            }],
+        })
+        .unwrap();
+    let edited = session.node_props(sample::LATIN).unwrap();
+    assert_eq!(
+        edited.text_content.as_deref(),
+        Some("Edited text\nSecond line")
+    );
+    assert_eq!(edited.font_size, Some(30.0));
+    assert!(session.view().unwrap().can_undo);
+    let bytes = session.export_bytes().unwrap();
+    session.undo(session.revision().as_u64()).unwrap();
+    assert_eq!(session.node_props(sample::LATIN).unwrap(), before);
+    assert!(session.view().unwrap().can_redo);
+    session.redo(session.revision().as_u64()).unwrap();
+    assert_eq!(session.node_props(sample::LATIN).unwrap(), edited);
+    session.open_json(&bytes, None).unwrap();
+    assert_eq!(session.node_props(sample::LATIN).unwrap(), edited);
+    let page = session.view().unwrap().pages[0].id.parse().unwrap();
+    session
+        .preview(page, preview_options())
+        .expect("edited text renders");
+}
+
+#[test]
+fn invalid_text_edits_leave_the_document_unchanged() {
+    let mut session = open_sample();
+    let before = session.export_bytes().unwrap();
+    for (node, font_size) in [
+        (sample::HEADER, 20.0),
+        (sample::LATIN, 0.0),
+        (sample::LATIN, f64::NAN),
+    ] {
+        assert!(
+            session
+                .apply(&EditRequest {
+                    expected_revision: session.revision().as_u64(),
+                    commands: vec![EditCommand::SetNodeText {
+                        node: node.to_owned(),
+                        content: "Invalid".to_owned(),
+                        font_size
+                    }],
+                })
+                .is_err()
+        );
+        assert_eq!(session.export_bytes().unwrap(), before);
+    }
+}
+
+#[test]
+fn a_batch_can_create_a_parent_then_a_child_and_edit_it() {
+    let mut s = open_sample();
+    let page = s.first_page().unwrap().to_string();
+    let parent = swotvibe_core::NodeId::new().to_string();
+    let child = swotvibe_core::NodeId::new().to_string();
+    s.apply(&EditRequest {
+        expected_revision: s.revision().as_u64(),
+        commands: vec![
+            EditCommand::CreateNode {
+                node: parent.clone(),
+                node_kind: "frame".into(),
+                name: None,
+                fill: None,
+                parent: NodeParent::PageRoot { page },
+            },
+            EditCommand::CreateNode {
+                node: child.clone(),
+                node_kind: "shape".into(),
+                name: None,
+                fill: None,
+                parent: NodeParent::Child {
+                    parent: parent.clone(),
+                },
+            },
+            EditCommand::SetNodeSize {
+                node: child.clone(),
+                size: [80.0, 40.0],
+            },
+        ],
+    })
+    .unwrap();
+    assert_eq!(s.node_props(&child).unwrap().size, [80.0, 40.0]);
+    s.undo(s.revision().as_u64()).unwrap();
+    assert!(s.node_props(&parent).is_err());
+    s.redo(s.revision().as_u64()).unwrap();
+    assert_eq!(s.node_props(&child).unwrap().size, [80.0, 40.0]);
+}
+
+#[test]
+fn moving_out_of_layout_then_setting_position_in_one_batch_uses_staged_state() {
+    let mut s = open_sample();
+    let page = s.first_page().unwrap().to_string();
+    s.apply(&EditRequest {
+        expected_revision: s.revision().as_u64(),
+        commands: vec![
+            EditCommand::MoveNode {
+                node: sample::HEADER.into(),
+                parent: NodeParent::PageRoot { page },
+            },
+            EditCommand::SetNodePosition {
+                node: sample::HEADER.into(),
+                position: [70.0, 90.0],
+            },
+        ],
+    })
+    .unwrap();
+    assert_eq!(
+        &s.node_props(sample::HEADER).unwrap().transform[4..],
+        &[70.0, 90.0]
+    );
+    s.undo(s.revision().as_u64()).unwrap();
+    assert!(
+        s.node_props(sample::HEADER)
+            .unwrap()
+            .position_is_layout_decided
+    );
+}
+
+#[test]
+fn moving_into_layout_then_setting_position_refuses_the_entire_batch() {
+    let mut s = open_sample();
+    let root = swotvibe_core::NodeId::new().to_string();
+    let page = s.first_page().unwrap().to_string();
+    s.apply(&EditRequest {
+        expected_revision: s.revision().as_u64(),
+        commands: vec![EditCommand::CreateNode {
+            node: root.clone(),
+            node_kind: "shape".into(),
+            name: None,
+            fill: None,
+            parent: NodeParent::PageRoot { page },
+        }],
+    })
+    .unwrap();
+    let before = s.export_bytes().unwrap();
+    let view = s.view().unwrap();
+    assert!(
+        s.apply(&EditRequest {
+            expected_revision: s.revision().as_u64(),
+            commands: vec![
+                EditCommand::MoveNode {
+                    node: root.clone(),
+                    parent: NodeParent::Child {
+                        parent: sample::CARD.into()
+                    }
+                },
+                EditCommand::SetNodePosition {
+                    node: root,
+                    position: [10.0, 10.0]
+                },
+            ]
+        })
+        .is_err()
+    );
+    assert_eq!(s.export_bytes().unwrap(), before);
+    assert_eq!(s.view().unwrap(), view);
+}
+
+#[test]
+fn delete_recreate_and_edit_does_not_merge_properties_across_the_deletion() {
+    let mut s = open_sample();
+    let page = s.first_page().unwrap().to_string();
+    let before = s.export_bytes().unwrap();
+    s.apply(&EditRequest {
+        expected_revision: s.revision().as_u64(),
+        commands: vec![
+            EditCommand::SetNodeFill {
+                node: sample::DOT.into(),
+                fill: Some(Rgba::opaque(1, 2, 3)),
+            },
+            EditCommand::DeleteNode {
+                node: sample::DOT.into(),
+            },
+            EditCommand::CreateNode {
+                node: sample::DOT.into(),
+                node_kind: "text".into(),
+                name: Some("Replacement".into()),
+                fill: None,
+                parent: NodeParent::PageRoot { page },
+            },
+            EditCommand::SetNodeText {
+                node: sample::DOT.into(),
+                content: "Recreated".into(),
+                font_size: 28.0,
+            },
+        ],
+    })
+    .unwrap();
+    assert_eq!(
+        s.node_props(sample::DOT).unwrap().text_content.as_deref(),
+        Some("Recreated")
+    );
+    s.undo(s.revision().as_u64()).unwrap();
+    assert_eq!(s.export_bytes().unwrap(), before);
+    s.redo(s.revision().as_u64()).unwrap();
+    assert_eq!(s.node_props(sample::DOT).unwrap().font_size, Some(28.0));
+}
+
+#[test]
+fn history_configuration_survives_open_and_is_reported_at_commit() {
+    let mut s = open_sample();
+    s.set_history_limits(Some(2), Some(0));
+    s.open_json(&sample_bytes(), None).unwrap();
+    assert_eq!(s.history_status().byte_capacity, Some(0));
+    let summary = s
+        .apply(&EditRequest {
+            expected_revision: s.revision().as_u64(),
+            commands: vec![EditCommand::RenameNode {
+                node: sample::HEADER.into(),
+                name: Some("Kept edit".into()),
+            }],
+        })
+        .unwrap();
+    assert!(!summary.can_undo);
+    assert_eq!(summary.history.last_commit_retained, Some(false));
+    assert_eq!(
+        s.node_props(sample::HEADER).unwrap().fill,
+        Some(Rgba::opaque(76, 110, 245))
+    );
+    assert!(s.is_dirty());
+}
+
+#[test]
+fn misspelled_or_extra_command_fields_are_not_silently_ignored() {
+    let requests = [
+        serde_json::json!({"expectedRevision":1,"commands":[],"unexpected":true}),
+        serde_json::json!({"expectedRevision":1,"commands":[{"kind":"set-node-fill","node":sample::HEADER,"colour":{"r":1,"g":2,"b":3,"a":255}}]}),
+        serde_json::json!({"expectedRevision":1,"commands":[{"kind":"set-node-fill","node":sample::HEADER,"fill":{"r":1,"g":2,"b":3,"a":255,"opacity":0.5}}]}),
+        serde_json::json!({"expectedRevision":1,"commands":[{"kind":"move-node","node":sample::HEADER,"parent":{"in":"child","parent":sample::CARD,"index":0}}]}),
+    ];
+    for request in requests {
+        assert!(
+            serde_json::from_value::<EditRequest>(request.clone()).is_err(),
+            "unexpected acceptance: {request}"
+        );
+    }
+}
+
+#[test]
+fn clearing_a_property_requires_explicit_null_instead_of_an_omitted_value() {
+    for kind in ["set-node-fill", "rename-node"] {
+        let request = serde_json::json!({"expectedRevision":1,"commands":[{"kind":kind,"node":sample::HEADER}]});
+        assert!(serde_json::from_value::<EditRequest>(request).is_err());
+    }
+}
+
+#[test]
+fn explicit_null_can_clear_fill_and_name_and_remains_undoable() {
+    let mut s = open_sample();
+    let before = s.export_bytes().unwrap();
+    let request = serde_json::json!({"expectedRevision":s.revision().as_u64(),"commands":[
+        {"kind":"set-node-fill","node":sample::HEADER,"fill":null},
+        {"kind":"rename-node","node":sample::HEADER,"name":null}
+    ]});
+    s.apply(&serde_json::from_value(request).unwrap()).unwrap();
+    assert!(s.node_props(sample::HEADER).unwrap().fill.is_none());
+    assert_eq!(
+        s.view()
+            .unwrap()
+            .nodes
+            .iter()
+            .find(|n| n.id == sample::HEADER)
+            .unwrap()
+            .name,
+        ""
+    );
+    s.undo(s.revision().as_u64()).unwrap();
+    assert_eq!(s.export_bytes().unwrap(), before);
+}

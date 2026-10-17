@@ -30,6 +30,13 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let state = build_state().unwrap_or_else(|error| panic!("{error}"));
+    let mut arguments = std::env::args_os().skip(1);
+    if arguments.next().as_deref() == Some(std::ffi::OsStr::new("--document")) {
+        let path = arguments.next().expect("--document requires a file path");
+        document::open_path(&state, std::path::Path::new(&path)).unwrap_or_else(|error| {
+            panic!("cannot open the requested document: {}", error.message)
+        });
+    }
 
     tauri::Builder::default()
         // The dialog plugin is used for one thing: showing a native open or save
@@ -57,6 +64,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::capabilities,
             commands::get_view,
+            commands::new_document,
+            commands::open_bytes,
             commands::apply,
             commands::undo,
             commands::redo,

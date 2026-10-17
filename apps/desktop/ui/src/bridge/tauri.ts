@@ -85,6 +85,10 @@ function isErrorShape(value: unknown): value is AppErrorShape {
  * the sample service instead, which is why no component imports this file.
  */
 export class TauriEditorBridge implements EditorBridge {
+  readonly rasterPreview = true
+  newDocument(): Promise<DocumentView> {
+    return call<DocumentView>('new_document')
+  }
   capabilities(): Promise<Capabilities> {
     return call<Capabilities>(COMMANDS.capabilities)
   }

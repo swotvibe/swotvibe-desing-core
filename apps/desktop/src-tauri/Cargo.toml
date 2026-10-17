@@ -47,3 +47,8 @@ swotvibe-text = { path = "../../../crates/text" }
 serde = { version = "1.0.229", default-features = false, features = ["std", "derive"] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+serde_json = { version = "1.0.151", default-features = false, features = ["std"] }
+swotvibe-format = { path = "../../../crates/format" }

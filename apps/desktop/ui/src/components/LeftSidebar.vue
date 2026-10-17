@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, Plus, Search } from '@lucide/vue'
-import { ref } from 'vue'
+import { ChevronDown, ChevronRight } from '@lucide/vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useEditorSession } from '@/editor/useEditor'
 import type { NodeView } from '@/bridge/types'
@@ -15,6 +15,8 @@ const editor = useEditorSession()
 
 const layerQuery = ref('')
 const collapsed = ref(new Set<string>())
+const tree = ref<HTMLElement | null>(null)
+const query = computed(() => layerQuery.value.trim().toLowerCase())
 
 /** The kind's icon, kept as a name so the tree stays data rather than markup. */
 const kindGlyph: Record<string, string> = {
@@ -35,50 +37,64 @@ function toggle(id: string): void {
   collapsed.value = next
 }
 
-/**
- * Flattens the tree for rendering.
- *
- * A search filters to matching nodes and their ancestors rather than dropping
- * context, because a layer without its parent is hard to place.
- */
-function visibleNodes(): NodeView[] {
-  const query = layerQuery.value.trim().toLowerCase()
-  const out: NodeView[] = []
+interface LayerRow { node: NodeView; depth: number }
 
-  const matches = (node: NodeView): boolean =>
-    query === '' || node.name.toLowerCase().includes(query)
-
-  const subtreeMatches = (node: NodeView): boolean =>
-    matches(node) || node.children.some((id) => subtreeMatchesById(id))
-
-  const subtreeMatchesById = (id: string): boolean => {
-    const node = editor.nodesById.value.get(id)
-    return node ? subtreeMatches(node) : false
-  }
-
-  const walk = (node: NodeView): void => {
-    if (!subtreeMatches(node)) return
-    out.push(node)
-    if (collapsed.value.has(node.id)) return
-    for (const childId of node.children) {
-      const child = editor.nodesById.value.get(childId)
-      if (child) walk(child)
+// Build each page tree once. Rewalking every subtree and ancestor for every row
+// made filtering a deeply nested document quadratic and could exhaust the stack.
+const pageRows = computed(() => {
+  const rows: LayerRow[] = []
+  const pending = editor.roots.value.map((node) => ({ node, depth: 0 })).reverse()
+  const visited = new Set<string>()
+  while (pending.length) {
+    const row = pending.pop()!
+    if (visited.has(row.node.id)) continue
+    visited.add(row.node.id)
+    rows.push(row)
+    for (let i = row.node.children.length - 1; i >= 0; i--) {
+      const node = editor.nodesById.value.get(row.node.children[i]!)
+      if (node) pending.push({ node, depth: row.depth + 1 })
     }
   }
+  return rows
+})
 
-  for (const root of editor.roots.value) walk(root)
-  return out
-}
-
-function depthOf(node: NodeView): number {
-  let depth = 0
-  let current = node.parent
-  while (current) {
-    depth += 1
-    current = editor.nodesById.value.get(current)?.parent ?? null
+const visibleRows = computed(() => {
+  if (query.value) {
+    const matches = new Set<string>()
+    for (let i = pageRows.value.length - 1; i >= 0; i--) {
+      const { node } = pageRows.value[i]!
+      if (node.name.toLowerCase().includes(query.value) || matches.has(node.id)) {
+        matches.add(node.id)
+        if (node.parent) matches.add(node.parent)
+      }
+    }
+    return pageRows.value.filter(({ node }) => matches.has(node.id))
   }
-  return depth
-}
+  const rows: LayerRow[] = []
+  let hiddenBelow = Infinity
+  for (const row of pageRows.value) {
+    if (row.depth > hiddenBelow) continue
+    rows.push(row)
+    hiddenBelow = collapsed.value.has(row.node.id) ? row.depth : Infinity
+  }
+  return rows
+})
+
+watch(editor.selectedId, async (id) => {
+  const next = new Set(collapsed.value)
+  const visited = new Set<string>()
+  let parent = id ? editor.nodesById.value.get(id)?.parent : null
+  while (parent && !visited.has(parent)) {
+    visited.add(parent)
+    next.delete(parent)
+    parent = editor.nodesById.value.get(parent)?.parent
+  }
+  collapsed.value = next
+  await nextTick()
+  if (id === editor.selectedId.value) {
+    tree.value?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({ block: 'nearest' })
+  }
+})
 </script>
 
 <template>
@@ -87,39 +103,21 @@ function depthOf(node: NodeView): number {
     <section class="border-b hairline">
       <header class="flex items-center gap-1 px-3 py-2">
         <h2 class="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Pages</h2>
-        <button
-          type="button"
-          class="ml-auto rounded p-1 text-ink-500 hover:bg-shell-900"
-          title="Search pages"
-          aria-label="Search pages"
-        >
-          <Search class="size-3.5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          class="rounded p-1 text-ink-500 hover:bg-shell-900"
-          title="Add page"
-          aria-label="Add page"
-          disabled
-        >
-          <Plus class="size-3.5" aria-hidden="true" />
-        </button>
+
+
       </header>
 
-      <ul class="pb-2">
+      <ul class="max-h-40 overflow-y-auto pb-2">
         <li v-for="page in editor.view.value?.pages ?? []" :key="page.id">
-          <!--
-            One page today, so this is a label rather than a control. A button
-            that looks clickable and does nothing is worse than a row that does
-            not invite the click.
-          -->
-          <div
+          <button type="button"
+            @click="editor.selectPage(page.id)"
             class="flex w-full items-center gap-2 bg-shell-850 px-3 py-1.5 text-left"
-            :aria-current="'page'"
+            :aria-current="editor.activePageId.value === page.id ? 'page' : undefined"
+            :class="editor.activePageId.value === page.id ? 'text-accent-400' : 'text-ink-500'"
           >
             <span class="size-2 rounded-sm bg-shell-700" aria-hidden="true" />
             <span class="truncate">{{ page.name }}</span>
-          </div>
+          </button>
         </li>
       </ul>
     </section>
@@ -129,7 +127,7 @@ function depthOf(node: NodeView): number {
       <header class="flex items-center gap-1 border-b px-3 py-2 hairline">
         <h2 class="text-[11px] font-semibold tracking-wide text-ink-500 uppercase">Layers</h2>
         <span class="ml-auto text-[10px] text-ink-700">
-          {{ editor.view.value?.nodes.length ?? 0 }}
+          {{ pageRows.length }}
         </span>
       </header>
 
@@ -144,26 +142,33 @@ function depthOf(node: NodeView): number {
         />
       </div>
 
-      <ul class="min-h-0 flex-1 overflow-y-auto pb-4" role="tree">
+      <p v-if="visibleRows.length === 0" data-test="no-layer-results" role="status" class="px-3 py-4 text-[12px] leading-relaxed text-ink-500">
+        {{ query ? `No layers match “${layerQuery.trim()}”.` : editor.activePageId.value ? 'This page has no layers. Add a frame, shape or text using the toolbar.' : 'Open or create a document to see its layers.' }}
+      </p>
+      <ul ref="tree" class="min-h-0 flex-1 overflow-y-auto pb-4" role="tree" aria-label="Layers">
         <li
-          v-for="node in visibleNodes()"
+          v-for="{ node, depth } in visibleRows"
           :key="node.id"
           role="treeitem"
           :aria-selected="node.id === editor.selectedId.value"
+          :aria-level="depth + 1"
+          :aria-expanded="node.children.length ? !!query || !collapsed.has(node.id) : undefined"
         >
           <div
             class="flex items-center gap-1 pr-2"
-            :style="{ paddingLeft: `${0.5 + depthOf(node) * 0.9}rem` }"
+            :style="{ paddingLeft: `${0.5 + depth * 0.9}rem` }"
           >
             <button
               v-if="node.children.length > 0"
               type="button"
               class="rounded p-0.5 text-ink-500 hover:bg-shell-800"
-              :aria-label="collapsed.has(node.id) ? 'Expand' : 'Collapse'"
+              :aria-label="!query && collapsed.has(node.id) ? 'Expand' : 'Collapse'"
+              :disabled="!!query"
+              :title="query ? 'Clear the filter to collapse layers' : undefined"
               @click.stop="toggle(node.id)"
             >
               <component
-                :is="collapsed.has(node.id) ? ChevronRight : ChevronDown"
+                :is="!query && collapsed.has(node.id) ? ChevronRight : ChevronDown"
                 class="size-3"
                 aria-hidden="true"
               />
@@ -172,7 +177,7 @@ function depthOf(node: NodeView): number {
 
             <button
               type="button"
-              class="flex min-w-0 flex-1 items-center gap-2 rounded py-1 pl-1 text-left"
+              class="flex min-w-0 flex-1 items-center gap-2 rounded py-1.5 pl-1 text-left"
               :class="
                 node.id === editor.selectedId.value
                   ? 'bg-accent-600/25 text-ink-100'

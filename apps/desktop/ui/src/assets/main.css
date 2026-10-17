@@ -1,5 +1,22 @@
 @import 'tailwindcss';
 
+@font-face {
+  font-family: 'Inter';
+  src: url('../../../../../assets/fonts/inter/Inter-variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Sans Arabic';
+  src: url('../../../../../assets/fonts/noto-sans-arabic/NotoSansArabic-variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+button:not(:disabled) { cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--color-accent-400); outline-offset: 2px; }
+input, textarea { min-width: 0; }
+
+
 /*
  * Design tokens for the editor shell.
  *

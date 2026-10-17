@@ -54,4 +54,4 @@ pub use vello_engine::{VelloCpuRenderer, compare_images};
 /// rather than an inferred crate version. The dependency is pinned exactly in
 /// `Cargo.toml`, so this string and the library cannot drift without a
 /// deliberate edit here.
-pub const VELLO_ENGINE_ID: &str = "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD)";
+pub const VELLO_ENGINE_ID: &str = "vello_cpu 0.3.0 (f32 pipeline, baseline SIMD, adapter v2)";

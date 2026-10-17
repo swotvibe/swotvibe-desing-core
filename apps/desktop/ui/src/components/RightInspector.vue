@@ -1,19 +1,5 @@
 <script setup lang="ts">
-import {
-  AlignCenterHorizontal,
-  AlignCenterVertical,
-  AlignEndHorizontal,
-  AlignEndVertical,
-  AlignStartHorizontal,
-  AlignStartVertical,
-  Blend,
-  ChevronDown,
-  Grid2x2,
-  Minus,
-  RotateCw,
-  Spline,
-  SquareDashed,
-} from '@lucide/vue'
+import { Grid2x2, Minus, RotateCw, Spline } from '@lucide/vue'
 import { computed, ref } from 'vue'
 
 import { alphaChannel, alphaPercent, fromHex, toHex } from '@/editor/color'
@@ -37,12 +23,12 @@ import type { Rgba } from '@/bridge/types'
  */
 const editor = useEditorSession()
 
-const tab = ref<'design' | 'prototype'>('design')
 const open = ref({
   position: true,
   layout: true,
   appearance: true,
   fill: true,
+  text: true,
 })
 
 const selected = editor.selected
@@ -57,15 +43,15 @@ const hasFill = computed(() => props.value?.fill != null)
 
 const kindLabel = computed(() => selected.value?.kind ?? '—')
 
-/**
- * The selected node's position on the page, from the layout result.
- *
- * Read from layout rather than the stored transform: under a container that
- * positions its children, the stored translation is not where the node is.
- */
+/** Editable translation in parent coordinates. */
 const position = computed<[number, number] | null>(() => {
-  const rect = editor.selectedRect.value
-  return rect ? [rect[0], rect[1]] : null
+  if (!props.value) return null
+  // Editable translation is relative to the parent; world bounds cannot be written back here.
+  return [props.value.transform[4], props.value.transform[5]]
+})
+const resolvedSize = computed(() => {
+  const geometry = editor.layout.value?.nodes.find((node) => node.id === selected.value?.id)
+  return geometry?.size ?? props.value?.size ?? [0, 0]
 })
 
 /** Whether the parent's layout places this node, so position is not editable. */
@@ -77,36 +63,50 @@ const hugs = computed(
 )
 
 /** Corner radius belongs to a shape, and the service refuses it elsewhere. */
-const isShape = computed(() => props.value?.shapeGeometry !== null)
+const isShape = computed(() => props.value?.shapeGeometry === 'rect')
 
-/**
- * The alignment buttons.
- *
- * They are named and disabled rather than omitted: alignment is a document
- * change this build cannot make yet, and a person should be able to see that
- * rather than wonder whether the control is missing.
- */
-const alignments = [
-  { label: 'Align left', icon: AlignStartVertical },
-  { label: 'Align horizontal centres', icon: AlignCenterVertical },
-  { label: 'Align right', icon: AlignEndVertical },
-  { label: 'Align top', icon: AlignStartHorizontal },
-  { label: 'Align vertical centres', icon: AlignCenterHorizontal },
-  { label: 'Align bottom', icon: AlignEndHorizontal },
-]
-
+// Consistent field behavior: Enter commits one-line fields; Escape restores.
+// Multi-line text keeps Enter for line breaks and commits with Ctrl/Cmd+Enter.
+function fieldKey(event: KeyboardEvent, original: string): void {
+  if (event.isComposing || event.keyCode === 229) return
+  const input = event.target as HTMLInputElement | HTMLTextAreaElement
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    input.value = original
+    input.blur()
+  } else if (event.key === 'Enter' && (input instanceof HTMLInputElement || event.ctrlKey || event.metaKey)) {
+    event.preventDefault()
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    input.blur()
+  }
+}
+function onName(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const name = input.value
+  input.value = selected.value?.name ?? ''
+  if (name !== input.value) void editor.renameSelected(name)
+}
+function onText(event: Event): void {
+  const input = event.target as HTMLTextAreaElement
+  const content = input.value
+  input.value = props.value?.textContent ?? ''
+  if (content !== input.value) void editor.setText(content, props.value?.fontSize ?? 16)
+}
 function onFillHex(event: Event): void {
   const input = event.target as HTMLInputElement
-  const parsed = fromHex(input.value, alphaChannel(fillAlpha.value))
-  if (!parsed) return
+  const parsed = fromHex(input.value, props.value?.fill?.a ?? 255)
+  input.value = fillHex.value
+  if (!parsed || toHex(parsed) === fillHex.value) return
   void editor.setFill(parsed)
 }
 
 function onFillAlpha(event: Event): void {
   const input = event.target as HTMLInputElement
-  const percent = Number(input.value)
+  const percent = input.value.trim() === '' ? NaN : Number(input.value)
   const current = props.value?.fill
-  if (!current || Number.isNaN(percent)) return
+  input.value = String(fillAlpha.value)
+  if (!current || !Number.isFinite(percent) || percent === fillAlpha.value) return
   void editor.setFill({
     ...current,
     a: alphaChannel(percent),
@@ -122,25 +122,6 @@ function toggle(name: keyof typeof open.value): void {
   <aside class="flex min-h-0 flex-col bg-shell-950">
     <InspectorAccount />
 
-    <!-- Tabs, then the zoom readout, which is where the reference layout puts it. -->
-    <div class="flex items-center gap-1 border-b px-3 pb-2 hairline">
-      <button
-        v-for="name in ['design', 'prototype'] as const"
-        :key="name"
-        type="button"
-        class="rounded px-2 py-1 text-[11px] capitalize"
-        :class="tab === name ? 'bg-shell-850 text-ink-100' : 'text-ink-500 hover:bg-shell-900'"
-        :aria-selected="tab === name"
-        role="tab"
-        @click="tab = name"
-      >
-        {{ name }}
-      </button>
-      <span class="ml-auto text-[11px] text-ink-500">
-        {{ Math.round(editor.zoom.value * 100) }}%
-      </span>
-    </div>
-
     <div class="min-h-0 flex-1 overflow-y-auto">
       <!-- The selected node's identity, so the panel is never ambiguous. -->
       <div class="flex items-center gap-2 border-b px-3 py-2 hairline">
@@ -150,13 +131,13 @@ function toggle(name: keyof typeof open.value): void {
           class="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-[12px] font-medium text-ink-100 placeholder:text-ink-700 hover:border-white/10 focus:border-accent-500 focus:outline-none"
           placeholder="Unnamed"
           aria-label="Node name"
-          :disabled="!hasSelection"
-          @change="(event) => editor.renameSelected((event.target as HTMLInputElement).value)"
+          :disabled="!hasSelection || editor.busy.value"
+          @change="onName"
+          @keydown="fieldKey($event, selected?.name ?? '')"
         />
         <span class="rounded bg-shell-850 px-1.5 py-0.5 text-[10px] text-ink-500">
           {{ kindLabel }}
         </span>
-        <ChevronDown class="size-3.5 text-ink-500" aria-hidden="true" />
       </div>
 
       <p v-if="!hasSelection" class="px-3 py-4 text-[11px] text-ink-500">
@@ -175,43 +156,25 @@ function toggle(name: keyof typeof open.value): void {
             </span>
           </template>
 
-          <div class="flex items-center gap-2 px-3 py-1">
-            <span class="w-20 shrink-0 text-[11px] text-ink-500">Alignment</span>
-            <div class="flex items-center gap-0.5">
-              <button
-                v-for="alignment in alignments"
-                :key="alignment.label"
-                type="button"
-                class="rounded p-1 text-ink-700"
-                disabled
-                :title="`${alignment.label} is not available yet`"
-                :aria-label="alignment.label"
-              >
-                <component :is="alignment.icon" class="size-3.5" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
           <PropertyRow label="Position">
             <div class="flex flex-1 items-center gap-1">
               <NumberField
                 label="X"
-                :model-value="position ? Math.round(position[0]) : ''"
-                :disabled="positionLocked"
+                :model-value="position ? position[0] : ''"
+                :disabled="positionLocked || editor.busy.value"
                 @commit="(value) => editor.setPosition(value, position?.[1] ?? 0)"
               />
               <NumberField
                 label="Y"
-                :model-value="position ? Math.round(position[1]) : ''"
-                :disabled="positionLocked"
+                :model-value="position ? position[1] : ''"
+                :disabled="positionLocked || editor.busy.value"
                 @commit="(value) => editor.setPosition(position?.[0] ?? 0, value)"
               />
             </div>
           </PropertyRow>
 
           <p v-if="positionLocked" class="px-3 pb-1 text-[10px] text-ink-700">
-            The parent lays its children out, so this node's position comes from
-            layout. Change the parent's layout to place it by hand.
+            The position comes from layout. Move the parent to reposition this layer.
           </p>
 
           <PropertyRow label="Rotation">
@@ -238,20 +201,23 @@ function toggle(name: keyof typeof open.value): void {
             <div class="flex flex-1 items-center gap-1">
               <NumberField
                 label="W"
-                :model-value="Math.round(props?.size[0] ?? 0)"
-                @commit="(value) => editor.setSize(value, props?.size[1] ?? 0)"
+                :min="0"
+                :disabled="editor.busy.value"
+                :model-value="resolvedSize[0] ?? 0"
+                @commit="(value) => editor.setSize(value, resolvedSize[1] ?? 0)"
               />
               <NumberField
                 label="H"
-                :model-value="Math.round(props?.size[1] ?? 0)"
-                @commit="(value) => editor.setSize(props?.size[0] ?? 0, value)"
+                :min="0"
+                :disabled="editor.busy.value"
+                :model-value="resolvedSize[1] ?? 0"
+                @commit="(value) => editor.setSize(resolvedSize[0] ?? 0, value)"
               />
             </div>
           </PropertyRow>
 
           <p v-if="hugs" class="px-3 pb-1 text-[10px] text-ink-700">
-            This node fits its content, so the stored size is not what layout uses.
-            Setting a size switches both axes to a fixed length.
+            This layer fits its content. Editing dimensions switches both axes to fixed size.
           </p>
 
           <PropertyRow label="Sizing">
@@ -264,45 +230,36 @@ function toggle(name: keyof typeof open.value): void {
             </span>
           </PropertyRow>
 
-          <PropertyRow label="Clip content">
-            <button
-              type="button"
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 text-ink-700 hairline"
-              disabled
-              title="Clipping is not part of the current schema"
-            >
-              <SquareDashed class="size-3" aria-hidden="true" />
-              <span class="text-[11px]">Not supported yet</span>
-            </button>
-          </PropertyRow>
         </InspectorSection>
 
         <InspectorSection
+          v-if="isShape"
           title="Appearance"
           :open="open.appearance"
           @toggle="toggle('appearance')"
         >
-          <PropertyRow label="Opacity">
-            <span
-              class="flex flex-1 items-center gap-1 rounded border bg-shell-900 px-2 py-1 text-ink-700 hairline"
-            >
-              <Blend class="size-3" aria-hidden="true" />
-              <span class="text-[11px]">Not in the schema yet</span>
-            </span>
-          </PropertyRow>
 
           <PropertyRow label="Corner radius">
             <NumberField
               label="R"
               :model-value="props?.cornerRadius ?? ''"
-              :disabled="!isShape"
+              :disabled="!isShape || editor.busy.value"
+              :min="0"
               @commit="(value) => editor.setCornerRadius(value)"
             />
           </PropertyRow>
 
-          <p v-if="!isShape" class="px-3 pb-1 text-[10px] text-ink-700">
-            Only a shape has a corner radius.
-          </p>
+        </InspectorSection>
+
+        <InspectorSection v-if="selected?.kind === 'text'" title="Text" :open="open.text" @toggle="toggle('text')">
+          <div class="space-y-2 px-3 py-2">
+            <textarea :key="selected.id" :value="props?.textContent ?? ''" aria-label="Text content" rows="3"
+              title="Ctrl+Enter to apply; Escape to cancel"
+              class="w-full resize-y rounded border bg-shell-900 p-2 hairline focus:outline-accent-500" :disabled="editor.busy.value"
+              @change="onText" @keydown="fieldKey($event, props?.textContent ?? '')" />
+            <NumberField label="Font size" :model-value="props?.fontSize ?? 16" :min="1" :disabled="editor.busy.value"
+              @commit="editor.setText(props?.textContent ?? '', $event)" />
+          </div>
         </InspectorSection>
 
         <InspectorSection title="Fill" :open="open.fill" @toggle="toggle('fill')">
@@ -312,15 +269,16 @@ function toggle(name: keyof typeof open.value): void {
               type="color"
               class="size-5 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
               aria-label="Fill colour"
-              :disabled="!hasFill"
-              @input="onFillHex"
+              :disabled="!hasFill || editor.busy.value"
+              @change="onFillHex"
             />
             <input
               :value="fillHex"
               type="text"
               class="min-w-0 flex-1 rounded border bg-shell-900 px-2 py-1 font-mono text-[11px] uppercase hairline focus:border-accent-500 focus:outline-none"
               aria-label="Fill hex value"
-              :disabled="!hasFill"
+              @keydown="fieldKey($event, fillHex)"
+              :disabled="!hasFill || editor.busy.value"
               @change="onFillHex"
             />
             <input
@@ -330,14 +288,17 @@ function toggle(name: keyof typeof open.value): void {
               max="100"
               class="w-12 rounded border bg-shell-900 px-1.5 py-1 text-right tabular-nums hairline focus:border-accent-500 focus:outline-none"
               aria-label="Fill opacity"
-              :disabled="!hasFill"
+              @keydown="fieldKey($event, String(fillAlpha))"
+              :disabled="!hasFill || editor.busy.value"
               @change="onFillAlpha"
             />
             <span class="text-[10px] text-ink-500">%</span>
           </div>
 
+          <button type="button" class="mx-3 my-2 rounded border px-2 py-1 hairline hover:bg-shell-800" :disabled="editor.busy.value"
+            @click="editor.setFill(hasFill ? null : { r: 76, g: 110, b: 245, a: 255 })">{{ hasFill ? 'Remove fill' : 'Add fill' }}</button>
           <p v-if="!hasFill" class="px-3 py-1 text-[10px] text-ink-700">
-            This node has no fill. The schema stores one fill per node.
+            No fill applied.
           </p>
         </InspectorSection>
       </template>

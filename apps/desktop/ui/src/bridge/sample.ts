@@ -1,18 +1,6 @@
-/**
- * A deterministic sample document for the interface.
- *
- * This is a stand-in for the application service, not a second implementation of
- * it. It exists so the editor shell can be built, run, and reviewed in a browser
- * before the desktop host lands, and so the components have something real to
- * render.
- *
- * What it deliberately does **not** do: it never decides what an edit means. It
- * stores properties, refuses a stale revision, and answers a hit test — the same
- * three behaviours a host relies on — and nothing else.
- *
- * The numbers come from `tests/fixtures/m0-sample-v2.json` and
- * `tests/golden/m0-sample.layout.json`, so the shell is laid out against the
- * committed M0 sample rather than invented geometry.
+/** Browser preview adapter. Desktop document layout and rendering live in Rust.
+ * The preview keeps transactional edits and history, and exports schema-v2 JSON.
+ * Browser text measurement remains approximate; it is not a replacement for the host.
  */
 
 import type {
@@ -30,7 +18,6 @@ import type {
 } from './types'
 
 const PAGE_ID = '018f0000-0000-7000-8000-000000000022'
-const PAGE_SIZE: [number, number] = [480, 320]
 
 /**
  * What a newly created node of each kind looks like.
@@ -69,6 +56,8 @@ function props(overrides: Partial<PropsView>): PropsView {
     textContent: null,
     fontFamily: null,
     fontSize: null,
+    fontWeight: null,
+    textAlign: null,
     textDirection: null,
     imageAsset: null,
     frameLayout: null,
@@ -146,6 +135,8 @@ function sampleNodes(): SampleNode[] {
         textContent: 'Swotvibe Design',
         fontFamily: 'Inter',
         fontSize: 24,
+        fontWeight: 400,
+        textAlign: 'start',
         textDirection: 'auto',
         positionIsLayoutDecided: true,
         widthSizing: 'hug',
@@ -165,7 +156,9 @@ function sampleNodes(): SampleNode[] {
         textContent: 'محرر تصميم',
         fontFamily: 'Noto Sans Arabic',
         fontSize: 24,
-        textDirection: 'rtl',
+        fontWeight: 400,
+        textAlign: 'start',
+        textDirection: 'auto',
         positionIsLayoutDecided: true,
         widthSizing: 'hug',
         heightSizing: 'hug',
@@ -199,12 +192,21 @@ function sampleNodes(): SampleNode[] {
  */
 export class SampleEditorBridge {
   private nodes = sampleNodes()
+  private hasPage = true
+  private past: string[] = []
+  private future: string[] = []
   private revision = 1
   private pristine = JSON.stringify(this.nodes)
   private dirty = false
 
   async capabilities(): Promise<Capabilities> {
     return {
+      editableCommands: ['create-node', 'delete-node', 'move-node', 'rename-node', 'set-node-fill',
+        'set-node-position', 'set-node-size', 'set-node-corner-radius', 'set-node-text',
+        'set-node-text-style', 'set-node-image-asset'],
+      textDirections: ['auto'],
+      textAlignments: ['start', 'center', 'end'],
+      fontWeightRange: [1, 1000],
       creatableKinds: ['frame', 'group', 'shape', 'text', 'image'],
       fontFamilies: ['Inter', 'Noto Sans Arabic'],
       renderer: 'sample service (the browser build draws no pixels)',
@@ -219,20 +221,20 @@ export class SampleEditorBridge {
       name: node.name,
       page: PAGE_ID,
       parent: node.parent,
-      children: node.children,
-      props: node.props,
+      children: [...node.children],
+      props: structuredClone(node.props),
     }))
-    // A document with no roots has no page to show, which is what an empty
-    // document is. Reporting a page with no children would be a second meaning
-    // for "empty".
+    // An open page survives deletion of its last layer.
     const roots = this.nodes
       .filter((node) => node.parent === null)
       .map((node) => node.id)
     return {
       revision: this.revision,
       dirty: this.dirty,
-      displayName: roots.length > 0 ? 'Preview' : null,
-      pages: roots.length > 0 ? [{ id: PAGE_ID, name: 'Preview', roots }] : [],
+      displayName: this.hasPage ? 'Preview' : null,
+      canUndo: this.past.length > 0,
+      canRedo: this.future.length > 0,
+      pages: this.hasPage ? [{ id: PAGE_ID, name: 'Preview', roots }] : [],
       nodes,
     }
   }
@@ -249,6 +251,16 @@ export class SampleEditorBridge {
       throw error
     }
 
+    const before = JSON.stringify(this.nodes)
+    try {
+      return await this.applyBatch(request, before)
+    } catch (cause) {
+      this.nodes = JSON.parse(before) as SampleNode[]
+      throw cause
+    }
+  }
+
+  private async applyBatch(request: EditRequest, before: string): Promise<CommitSummary> {
     const added: string[] = []
     const removed: string[] = []
     const changed: string[] = []
@@ -277,13 +289,18 @@ export class SampleEditorBridge {
           parent: parentId,
           children: [],
           props: props({
-            size: defaults.size,
+            size: [...defaults.size],
+            widthSizing: command.nodeKind === 'text' ? 'hug' : 'fixed',
+            heightSizing: command.nodeKind === 'text' ? 'hug' : 'fixed',
             fill: command.fill ?? defaults.fill,
             shapeGeometry: command.nodeKind === 'shape' ? 'rect' : null,
             cornerRadius: command.nodeKind === 'shape' ? 0 : null,
             textContent: defaults.text ?? null,
             fontFamily: command.nodeKind === 'text' ? 'Inter' : null,
             fontSize: command.nodeKind === 'text' ? 16 : null,
+            fontWeight: command.nodeKind === 'text' ? 400 : null,
+            textAlign: command.nodeKind === 'text' ? 'start' : null,
+            textDirection: command.nodeKind === 'text' ? 'auto' : null,
           }),
           rect: [0, 0, defaults.size[0], defaults.size[1]],
         })
@@ -352,6 +369,14 @@ export class SampleEditorBridge {
             throw error
           }
           const [x, y] = command.position
+          if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('Position must be finite')
+          const dx = x - node.props.transform[4]
+          const dy = y - node.props.transform[5]
+          for (const child of this.nodes) {
+            if (child.id !== node.id && this.collectSubtree(node.id).has(child.id)) {
+              child.rect = [child.rect[0] + dx, child.rect[1] + dy, child.rect[2], child.rect[3]]
+            }
+          }
           node.props = {
             ...node.props,
             transform: [
@@ -379,7 +404,49 @@ export class SampleEditorBridge {
           changed.push(node.id)
           break
         }
+        case 'set-node-text': {
+          if (node.kind !== 'text' || !Number.isFinite(command.fontSize) || command.fontSize <= 0) {
+            throw new Error('Text requires a text node and a positive font size')
+          }
+          node.props = { ...node.props, textContent: command.content, fontSize: command.fontSize }
+          changed.push(node.id)
+          break
+        }
+        case 'set-node-text-style': {
+          const refuse = (code: 'invalid-request' | 'command-rejected', message: string): never => {
+            throw Object.assign(new Error(message), { code, node: node.id })
+          }
+          if (node.kind !== 'text') refuse('command-rejected', 'only a text node has a text style')
+          if (!Number.isInteger(command.fontWeight) || command.fontWeight < 1 || command.fontWeight > 1000) {
+            refuse('invalid-request', 'font weight must be in 1..=1000')
+          }
+          if (!['Inter', 'Noto Sans Arabic'].includes(command.fontFamily)) refuse('invalid-request', 'the font family is not registered')
+          if (!['start', 'center', 'end'].includes(command.align)) refuse('invalid-request', 'text alignment must be start, center or end')
+          if (!['auto', 'ltr', 'rtl'].includes(command.direction)) refuse('invalid-request', 'text direction must be auto, ltr or rtl')
+          if (command.direction !== 'auto') refuse('command-rejected', 'forced paragraph direction is unsupported')
+          node.props = { ...node.props, fontFamily: command.fontFamily, fontWeight: command.fontWeight,
+            textAlign: command.align, textDirection: command.direction }
+          changed.push(node.id)
+          break
+        }
+        case 'set-node-image-asset': {
+          if (node.kind !== 'image') throw Object.assign(new Error('only an image node has an image asset'), { code: 'command-rejected', node: node.id })
+          if (!Object.hasOwn(command, 'asset') || (command.asset !== null && typeof command.asset !== 'string')) {
+            throw Object.assign(new Error('asset is required; use null to clear it'), { code: 'invalid-request', node: node.id })
+          }
+          if (command.asset !== null) {
+            const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(command.asset)
+            throw Object.assign(new Error(validId ? 'the asset is not registered in this document' : 'invalid asset identity'),
+              { code: validId ? 'command-rejected' : 'invalid-request', node: node.id })
+          }
+          // The browser sample has no asset registry or payloads. Native binding
+          // is tested in Rust; this adapter can clear bindings and rejects missing assets.
+          node.props = { ...node.props, imageAsset: null }
+          changed.push(node.id)
+          break
+        }
         case 'set-node-corner-radius': {
+          if (!Number.isFinite(command.radius) || command.radius < 0) throw new Error('Radius must be non-negative')
           if (node.props.shapeGeometry === null) {
             const error = new Error('only a shape node has a corner radius')
             Object.assign(error, { code: 'command-rejected', node: node.id })
@@ -392,6 +459,9 @@ export class SampleEditorBridge {
       }
     }
 
+    this.past.push(before)
+    this.future = []
+    this.measureText()
     const previous = this.revision
     this.revision += 1
     this.dirty = JSON.stringify(this.nodes) !== this.pristine
@@ -399,7 +469,7 @@ export class SampleEditorBridge {
       previousRevision: previous,
       revision: this.revision,
       dirty: this.dirty,
-      canUndo: this.dirty,
+      canUndo: this.past.length > 0,
       canRedo: false,
       addedNodes: added,
       removedNodes: removed,
@@ -424,19 +494,39 @@ export class SampleEditorBridge {
     return found
   }
 
-  async undo(): Promise<CommitSummary> {
-    const error = new Error('there is nothing to undo')
-    Object.assign(error, { code: 'history' })
-    throw error
+  private restore(expectedRevision: number, from: string[], to: string[]): CommitSummary {
+    if (expectedRevision !== this.revision) throw Object.assign(new Error('Stale revision'), { code: 'revision-conflict' })
+    const snapshot = from.pop()
+    if (snapshot === undefined) throw Object.assign(new Error('There is no history step available'), { code: 'history' })
+    to.push(JSON.stringify(this.nodes))
+    this.nodes = JSON.parse(snapshot) as SampleNode[]
+    const previousRevision = this.revision++
+    this.dirty = JSON.stringify(this.nodes) !== this.pristine
+    return { previousRevision, revision: this.revision, dirty: this.dirty,
+      canUndo: this.past.length > 0, canRedo: this.future.length > 0,
+      addedNodes: [], removedNodes: [], changedNodes: this.nodes.map((node) => node.id), affectedPages: [PAGE_ID] }
   }
 
-  async redo(): Promise<CommitSummary> {
-    const error = new Error('there is nothing to redo')
-    Object.assign(error, { code: 'history' })
-    throw error
+  async undo(expectedRevision: number): Promise<CommitSummary> {
+    return this.restore(expectedRevision, this.past, this.future)
   }
 
-  async layout(page: string, _options: PreviewOptions): Promise<LayoutView> {
+  async redo(expectedRevision: number): Promise<CommitSummary> {
+    return this.restore(expectedRevision, this.future, this.past)
+  }
+
+  // Browser preview only: desktop typography is measured by the Rust engine.
+  private measureText(): void {
+    for (const node of this.nodes) {
+      if (node.kind !== 'text') continue
+      const size = node.props.fontSize ?? 16
+      const lines = (node.props.textContent ?? '').split('\n')
+      if (node.props.widthSizing === 'hug') node.rect[2] = Math.max(...lines.map((line) => line.length)) * size * 0.6
+      if (node.props.heightSizing === 'hug') node.rect[3] = lines.length * size * 1.4
+    }
+  }
+
+  async layout(page: string, options: PreviewOptions): Promise<LayoutView> {
     if (page !== PAGE_ID) {
       const error = new Error('the page is not in the document')
       Object.assign(error, { code: 'unknown-page', page })
@@ -445,16 +535,36 @@ export class SampleEditorBridge {
     const nodes: LayoutNodeView[] = this.nodes.map((node) => ({
       id: node.id,
       rect: node.rect,
-      size: node.props.size,
+      size: [node.rect[2], node.rect[3]],
       world: [1, 0, 0, 1, node.rect[0], node.rect[1]],
     }))
     return {
       revision: this.revision,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize: this.pageSize(options),
       nodes,
       diagnostics: [],
     }
+  }
+
+  /**
+   * The page the service would answer with.
+   *
+   * `max(requested, contentBounds)` componentwise, which is what the service
+   * does: the request is a floor, and content outside it grows the page rather
+   * than falling off it. Returning the requested size unconditionally — as this
+   * stand-in used to — agreed with a canvas that drew the same constant, so the
+   * two hid the difference from each other instead of exposing it.
+   */
+  private pageSize(options: PreviewOptions): [number, number] {
+    const [requestedWidth, requestedHeight] = options.pageSize ?? [480, 320]
+    let width = requestedWidth
+    let height = requestedHeight
+    for (const node of this.nodes) {
+      width = Math.max(width, node.rect[0] + node.rect[2])
+      height = Math.max(height, node.rect[1] + node.rect[3])
+    }
+    return [width, height]
   }
 
   async preview(page: string, options: PreviewOptions): Promise<Preview> {
@@ -496,8 +606,30 @@ export class SampleEditorBridge {
   }
 
   async exportBytes(): Promise<Uint8Array> {
-    const payload = JSON.stringify({ schema_version: 2, nodes: this.nodes.length })
-    return new TextEncoder().encode(payload)
+    const rgba = (color: Rgba | null) => color ? [color.r, color.g, color.b, color.a] : null
+    const payload = {
+      schema_version: 2, id: '018f0000-0000-7000-8000-000000000021',
+      pages: this.hasPage ? [{ id: PAGE_ID, name: 'Page 1', roots: this.nodes.filter((n) => n.parent === null).map((n) => n.id) }] : [],
+      assets: [],
+      nodes: this.nodes.map((node) => {
+        const p = node.props
+        return {
+          id: node.id, kind: node.kind, name: node.name, children: node.children,
+          props: {
+            transform: p.transform, size: p.size, width: p.widthSizing, height: p.heightSizing,
+            fill: rgba(p.fill),
+            ...(p.stroke ? { stroke: { color: rgba(p.stroke.color), width: p.stroke.width } } : {}),
+            ...(node.kind === 'frame' ? { frame: p.frameLayout === 'flex'
+              ? { layout: 'flex', direction: 'column', gap: 12, padding: { top: 16, right: 16, bottom: 16, left: 16 }, main_align: 'start', cross_align: 'start' }
+              : { layout: 'none' } } : {}),
+            ...(node.kind === 'shape' ? { shape: { geometry: p.shapeGeometry ?? 'rect', corner_radius: p.cornerRadius ?? 0 } } : {}),
+            ...(node.kind === 'text' ? { text: { content: p.textContent ?? '', font_family: p.fontFamily ?? 'Inter', font_size: p.fontSize ?? 16, font_weight: p.fontWeight ?? 400, direction: p.textDirection ?? 'auto', align: p.textAlign ?? 'start' } } : {}),
+            ...(node.kind === 'image' ? { image: { asset: p.imageAsset } } : {}),
+          },
+        }
+      }),
+    }
+    return new TextEncoder().encode(JSON.stringify(payload, null, 2))
   }
 
   async noteSaved(): Promise<void> {
@@ -506,25 +638,21 @@ export class SampleEditorBridge {
   }
 
   /**
-   * Saves to memory.
-   *
-   * A browser has no file system, so this stands in for a host's write: it
-   * records the current state as saved and reports a name. `openDocument` is
-   * deliberately absent — there is nothing to open, and pretending otherwise
-   * would put a dialog that cannot appear behind a button that looks live.
-   */
-  async saveDocument(): Promise<string | null> {
-    await this.noteSaved()
-    return 'design.json'
-  }
-
-  /**
    * Reloads the sample this service was seeded with.
    *
    * The browser build has no file to open, so this is the honest equivalent: it
    * restores the committed sample rather than pretending to read a document.
    */
+  async newDocument(): Promise<DocumentView> {
+    this.empty()
+    this.hasPage = true
+    return this.getView()
+  }
+
   async openSample(): Promise<DocumentView> {
+    this.hasPage = true
+    this.past = []
+    this.future = []
     this.nodes = sampleNodes()
     this.revision += 1
     this.dirty = false
@@ -551,6 +679,9 @@ export class SampleEditorBridge {
    * the state a real first run is in.
    */
   empty(): void {
+    this.hasPage = false
+    this.past = []
+    this.future = []
     this.nodes = []
     this.revision += 1
     this.pristine = JSON.stringify(this.nodes)

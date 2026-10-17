@@ -106,8 +106,8 @@ temporary transaction memory; that cost needs separate profiling.
 
 ## Follow-up
 
-Accounting and status are implemented in the core through `HistoryStatus`.
-Application and host integration are maintained separately from this core-only change.
+Accounting and status are implemented and exposed through the application
+view and commit summary. Host-selected limits survive document replacement.
 Keep 256 total retained steps as the only default; the byte ceiling remains
 unconfigured. Benchmark representative workloads and allocator-observed memory
 before selecting a product default or claiming a process-memory bound.

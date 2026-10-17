@@ -129,6 +129,15 @@ pub fn get_view(state: State<'_, EditorState>) -> IpcResult<DocumentView> {
     state.lock_document().view().map_err(IpcError::from)
 }
 
+/// Creates a blank document with one page.
+///
+/// # Errors
+/// Returns an IPC error if the initial document cannot be created.
+#[tauri::command]
+pub fn new_document(state: State<'_, EditorState>) -> IpcResult<DocumentView> {
+    state.lock_document().new_document().map_err(IpcError::from)
+}
+
 /// Opens a document from bytes a host obtained through a file dialog.
 ///
 /// The interface never sends a path. Choosing a file is the host's job, and
@@ -146,7 +155,12 @@ pub fn open_bytes(
 ) -> IpcResult<DocumentView> {
     state
         .lock_document()
-        .open_json(&bytes, display_name)
+        .open_document(
+            &bytes,
+            display_name,
+            crate::document::BUNDLE_LIMITS,
+            crate::document::RENDER_LIMITS,
+        )
         .map_err(IpcError::from)
 }
 
